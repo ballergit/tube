@@ -1,1 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>VidoHub</title>
+
+  <style>
+    :root {
+      --bg: #090b10;
+      --surface: #121620;
+      --surface2: #181d28;
+      --text: #f5f7fb;
+      --muted: #9299a8;
+      --border: #272d39;
+      --accent: #ff3158;
+      --accent-dark: #d91f44;
+      --input: #151a23;
+    }
+
+    body.light {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface2: #eef0f4;
+      --text: #111318;
+      --muted: #687080;
+      --border: #dfe3e9;
+      --input: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      transition: background .25s, color .25s;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* =========================
+       HEADER
+    ========================== */
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9, 11, 16, .94);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+
+    body.light header {
+      background: rgba(245, 246, 248, .94);
+    }
+
+    .header-inner {
+      width: min(1150px, 100%);
+      margin: auto;
+      padding: 13px 18px;
+
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -.8px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    /* SEARCH */
+
+    .search-box {
+      flex: 1;
+      display: flex;
+      min-width: 100px;
+
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .search-box input {
+      width: 100%;
+      min-width: 0;
+
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+
+      padding: 11px 13px;
+    }
+
+    .search-box button {
+      width: 48px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 17px;
+    }
+
+    .header-btn {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .upload-btn {
+      border: 0;
+      background: var(--accent);
+      color: white;
+
+      padding: 11px 15px;
+      border-radius: 10px;
+
+      font-weight: 800;
+    }
+
+    .upload-btn:hover {
+      background: var(--accent-dark);
+    }
+
+    /* =========================
+       MAIN
+    ========================== */
+
+    main {
+      width: min(1150px, 100%);
+      margin: auto;
+      padding: 25px 18px 110px;
+    }
+
+    /* HERO */
+
+    .hero {
+      min-height: 330px;
+
+      padding: 32px;
+
+      border: 1px solid var(--border);
+      border-radius: 22px;
+
+      display: flex;
+      align-items: flex-end;
+
+      background:
+        linear-gradient(
+          135deg,
+          #252c3b,
+          #11151e 60%,
+          #171b25
+        );
+
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 330px;
+      height: 330px;
+      right: -100px;
+      top: -120px;
+
+      border-radius: 50%;
+
+      background: rgba(255, 49, 88, .16);
+      filter: blur(30px);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 650px;
+    }
+
+    .eyebrow {
+      color: #c4cad5;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .hero h1 {
+      font-size: clamp(32px, 6vw, 58px);
+      line-height: 1;
+      letter-spacing: -2px;
+      margin: 10px 0 15px;
+    }
+
+    .hero p {
+      color: #b3bbc9;
+      line-height: 1.6;
+      max-width: 580px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .primary-btn,
+    .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 12px 17px;
+      border-radius: 10px;
+
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .primary-btn {
+      background: white;
+      color: #111;
+    }
+
+    .secondary-btn {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.18);
+      color: white;
+    }
+
+    /* =========================
+       SECTIONS
+    ========================== */
+
+    .section-header {
+      margin: 28px 0 13px;
+
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-header h2 {
+      font-size: 21px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    /* CATEGORIES */
+
+    .categories {
+      display: flex;
+      gap: 8px;
+
+      overflow-x: auto;
+      scrollbar-width: none;
+
+      padding-bottom: 4px;
+    }
+
+    .categories::-webkit-scrollbar {
+      display: none;
+    }
+
+    .category {
+      flex-shrink: 0;
+
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+
+      padding: 9px 14px;
+      border-radius: 50px;
+    }
+
+    .category.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    /* =========================
+       ADS
+    ========================== */
+
+    .ad {
+      min-height: 90px;
+
+      margin: 24px 0;
+
+      border: 1px dashed var(--border);
+      border-radius: 13px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    /* =========================
+       VIDEOS
+    ========================== */
+
+    .videos {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+
+    .video-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+
+      border-radius: 14px;
+      overflow: hidden;
+
+      transition: transform .2s, border-color .2s;
+    }
+
+    .video-card:hover {
+      transform: translateY(-3px);
+      border-color: #424958;
+    }
+
+    .thumbnail {
+      aspect-ratio: 16 / 9;
+
+      position: relative;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          135deg,
+          #354155,
+          #101620
+        );
+    }
+
+    .thumbnail:nth-child(2n) {
+      background:
+        linear-gradient(
+          135deg,
+          #48365e,
+          #141827
+        );
+    }
+
+    .play-icon {
+      width: 48px;
+      height: 48px;
+
+      border-radius: 50%;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background: rgba(255,255,255,.13);
+      backdrop-filter: blur(8px);
+
+      color: white;
+      font-size: 17px;
+    }
+
+    .duration {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+
+      background: rgba(0,0,0,.75);
+      color: white;
+
+      padding: 4px 7px;
+      border-radius: 5px;
+
+      font-size: 11px;
+    }
+
+    .video-info {
+      padding: 12px;
+    }
+
+    .video-title {
+      font-weight: 800;
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+
+    .video-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .video-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-top: 11px;
+    }
+
+    .video-actions a {
+      text-align: center;
+
+      padding: 8px 5px;
+
+      border-radius: 8px;
+
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .watch-btn {
+      background: var(--accent);
+      color: white;
+    }
+
+    .download-btn {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* =========================
+       IMPORT / GRABBER
+    ========================== */
+
+    .import-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+
+      border-radius: 16px;
+
+      padding: 20px;
+    }
+
+    .import-box p {
+      color: var(--muted);
+      margin: 7px 0 15px;
+      font-size: 14px;
+    }
+
+    .import-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .import-form input {
+      flex: 1;
+
+      min-width: 0;
+
+      padding: 12px;
+
+      border-radius: 10px;
+
+      border: 1px solid var(--border);
+
+      background: var(--input);
+      color: var(--text);
+
+      outline: none;
+    }
+
+    .import-form button {
+      border: 0;
+
+      padding: 0 17px;
+
+      border-radius: 10px;
+
+      background: var(--accent);
+      color: white;
+
+      font-weight: 800;
+    }
+
+    /* =========================
+       TELEGRAM
+    ========================== */
+
+    .telegram {
+      margin-top: 25px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #162b43,
+          #101c2c
+        );
+
+      border: 1px solid #294665;
+
+      padding: 22px;
+
+      border-radius: 16px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 15px;
+    }
+
+    .telegram h3 {
+      margin-bottom: 6px;
+    }
+
+    .telegram p {
+      color: #aab8c8;
+      font-size: 13px;
+    }
+
+    .telegram-btn {
+      flex-shrink: 0;
+
+      background: #229ed9;
+      color: white;
+
+      text-decoration: none;
+
+      padding: 11px 15px;
+
+      border-radius: 9px;
+
+      font-weight: 800;
+    }
+
+    /* =========================
+       CONTACT
+    ========================== */
+
+    .contact {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .contact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+
+      border-radius: 15px;
+      padding: 20px;
+    }
+
+    .contact-card h3 {
+      margin-bottom: 8px;
+    }
+
+    .contact-card p {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .contact-form {
+      margin-top: 15px;
+
+      display: grid;
+      gap: 10px;
+    }
+
+    .contact-form input,
+    .contact-form textarea {
+      width: 100%;
+
+      border: 1px solid var(--border);
+
+      background: var(--input);
+      color: var(--text);
+
+      border-radius: 9px;
+
+      padding: 11px;
+
+      outline: none;
+    }
+
+    .contact-form textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .contact-form button {
+      border: 0;
+
+      background: var(--accent);
+      color: white;
+
+      padding: 12px;
+
+      border-radius: 9px;
+
+      font-weight: 800;
+    }
+
+    /* =========================
+       FOOTER
+    ========================== */
+
+    footer {
+      border-top: 1px solid var(--border);
+
+      padding: 25px 18px;
+
+      color: var(--muted);
+
+      text-align: center;
+
+      font-size: 13px;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+
+      margin-bottom: 13px;
+    }
+
+    .footer-links a {
+      text-decoration: none;
+    }
+
+    /* =========================
+       MOBILE NAV
+    ========================== */
+
+    .mobile-nav {
+      display: none;
+    }
+
+    /* =========================
+       RESPONSIVE
+    ========================== */
+
+    @media (max-width: 900px) {
+
+      .videos {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+    }
+
+    @media (max-width: 700px) {
+
+      .header-inner {
+        padding: 11px 12px;
+        gap: 8px;
+      }
+
+      .logo {
+        font-size: 20px;
+      }
+
+      .upload-btn {
+        display: none;
+      }
+
+      .videos {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .contact {
+        grid-template-columns: 1fr;
+      }
+
+      .telegram {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .import-form {
+        flex-direction: column;
+      }
+
+      .import-form button {
+        min-height: 44px;
+      }
+
+      .mobile-nav {
+        position: fixed;
+        display: flex;
+
+        bottom: 0;
+        left: 0;
+        right: 0;
+
+        z-index: 90;
+
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+
+        justify-content: space-around;
+
+        padding: 9px 5px;
+      }
+
+      .mobile-nav a {
+        color: var(--muted);
+        text-decoration: none;
+        text-align: center;
+
+        font-size: 11px;
+      }
+
+      .mobile-nav span {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 2px;
+      }
+
+      main {
+        padding-bottom: 100px;
+      }
+
+    }
+
+    @media (max-width: 450px) {
+
+      .hero {
+        min-height: 280px;
+        padding: 23px;
+      }
+
+      .hero h1 {
+        letter-spacing: -1px;
+      }
+
+      .video-title {
+        font-size: 13px;
+      }
+
+      .video-meta {
+        font-size: 11px;
+      }
+
+      .video-actions a {
+        font-size: 11px;
+      }
+
+    }
+  </style>
+</head>
+
+
+<body>
+
+<!-- =========================
+     HEADER
+========================== -->
+
+<header>
+
+  <div class="header-inner">
+
+    <a href="#" class="logo">
+      Vido<span>Hub</span>
+    </a>
+
+
+    <div class="search-box">
+
+      <input
+        id="searchInput"
+        type="search"
+        placeholder="Search videos..."
+        autocomplete="off"
+      >
+
+      <button onclick="searchVideos()">
+        🔍
+      </button>
+
+    </div>
+
+
+    <button
+      class="header-btn"
+      id="themeButton"
+      onclick="toggleTheme()"
+      aria-label="Toggle theme"
+    >
+      🌙
+    </button>
+
+
+    <button
+      class="upload-btn"
+      onclick="openUpload()"
+    >
+      + Upload
+    </button>
+
+  </div>
+
+</header>
+
+
+
+<!-- =========================
+     MAIN
+========================== -->
+
+<main>
+
+
+  <!-- HERO -->
+
+  <section class="hero">
+
+    <div class="hero-content">
+
+      <div class="eyebrow">
+        FEATURED VIDEO
+      </div>
+
+      <h1>
+        Discover videos worth watching.
+      </h1>
+
+      <p>
+        Explore videos, creators and authorized content
+        from one clean, fast video platform.
+      </p>
+
+      <div class="hero-actions">
+
+        <a href="#videos" class="primary-btn">
+          ▶ Explore Videos
+        </a>
+
+        <a href="#import" class="secondary-btn">
+          🔗 Import Video
+        </a>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- CATEGORIES -->
+
+  <div class="section-header">
+
+    <h2>
+      Categories
+    </h2>
+
+  </div>
+
+
+  <div class="categories">
+
+    <button
+      class="category active"
+      onclick="filterVideos('All', this)"
+    >
+      All
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Trending', this)"
+    >
+      🔥 Trending
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Music', this)"
+    >
+      🎵 Music
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Gaming', this)"
+    >
+      🎮 Gaming
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Tech', this)"
+    >
+      💻 Tech
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Travel', this)"
+    >
+      ✈️ Travel
+    </button>
+
+    <button
+      class="category"
+      onclick="filterVideos('Cooking', this)"
+    >
+      🍳 Cooking
+    </button>
+
+  </div>
+
+
+
+  <!-- AD -->
+
+  <div class="ad">
+    ADVERTISEMENT
+  </div>
+
+
+
+  <!-- VIDEOS -->
+
+  <div class="section-header" id="videos">
+
+    <h2>
+      Latest Videos
+    </h2>
+
+    <span
+      class="muted"
+      id="videoCount"
+    >
+      8 videos
+    </span>
+
+  </div>
+
+
+  <section
+    class="videos"
+    id="videoGrid"
+  ></section>
+
+
+
+  <!-- SECOND AD -->
+
+  <div class="ad">
+    ADVERTISEMENT
+  </div>
+
+
+
+  <!-- IMPORTER -->
+
+  <div
+    class="section-header"
+    id="import"
+  >
+
+    <h2>
+      Video Importer
+    </h2>
+
+  </div>
+
+
+  <section class="import-box">
+
+    <h3>
+      Import an authorized video
+    </h3>
+
+    <p>
+      Paste a supported video URL. The server-side
+      importer will be connected in the backend.
+    </p>
+
+    <div class="import-form">
+
+      <input
+        id="videoUrl"
+        type="url"
+        placeholder="https://example.com/video.mp4"
+      >
+
+      <button onclick="importVideo()">
+        Import Video
+      </button>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- TELEGRAM -->
+
+  <section class="telegram">
+
+    <div>
+
+      <h3>
+        📢 Join our Telegram Channel
+      </h3>
+
+      <p>
+        Get updates, announcements and new video notifications.
+      </p>
+
+    </div>
+
+
+    <!-- CHANGE THIS URL TO YOUR TELEGRAM CHANNEL -->
+
+    <a
+      href="https://t.me/yourchannel"
+      target="_blank"
+      rel="noopener"
+      class="telegram-btn"
+    >
+      Join Telegram
+    </a>
+
+  </section>
+
+
+
+  <!-- CONTACT -->
+
+  <div
+    class="section-header"
+    id="contact"
+  >
+
+    <h2>
+      Contact Us
+    </h2>
+
+  </div>
+
+
+  <section class="contact">
+
+
+    <div class="contact-card">
+
+      <h3>
+        Get in touch
+      </h3>
+
+      <p>
+        Have a question, partnership request or
+        technical issue? Send us a message.
+      </p>
+
+      <p style="margin-top:15px;">
+        📧 Email: your@email.com
+      </p>
+
+      <p style="margin-top:7px;">
+        📢 Telegram: @yourchannel
+      </p>
+
+    </div>
+
+
+    <div class="contact-card">
+
+      <h3>
+        Send a message
+      </h3>
+
+      <form
+        class="contact-form"
+        onsubmit="sendMessage(event)"
+      >
+
+        <input
+          type="text"
+          placeholder="Your name"
+          required
+        >
+
+        <input
+          type="email"
+          placeholder="Your email"
+          required
+        >
+
+        <input
+          type="text"
+          placeholder="Subject"
+          required
+        >
+
+        <textarea
+          placeholder="Your message..."
+          required
+        ></textarea>
+
+        <button type="submit">
+          Send Message
+        </button>
+
+      </form>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+
+<!-- =========================
+     FOOTER
+========================== -->
+
+<footer>
+
+  <div class="footer-links">
+
+    <a href="#">
+      Home
+    </a>
+
+    <a href="#videos">
+      Videos
+    </a>
+
+    <a href="#import">
+      Video Importer
+    </a>
+
+    <a href="#contact">
+      Contact
+    </a>
+
+    <a
+      href="https://t.me/yourchannel"
+      target="_blank"
+      rel="noopener"
+    >
+      Telegram
+    </a>
+
+  </div>
+
+  © 2026 VidoHub. All rights reserved.
+
+</footer>
+
+
+
+<!-- =========================
+     MOBILE NAV
+========================== -->
+
+<nav class="mobile-nav">
+
+  <a href="#">
+    <span>🏠</span>
+    Home
+  </a>
+
+  <a href="#videos">
+    <span>🔎</span>
+    Explore
+  </a>
+
+  <a href="#import">
+    <span>🔗</span>
+    Import
+  </a>
+
+  <a href="#contact">
+    <span>📩</span>
+    Contact
+  </a>
+
+</nav>
+
+
+
+<script>
+
+/* =========================
+   VIDEO DATA
+========================= */
+
+const videos = [
+
+  {
+    title: "Midnight City Walk",
+    category: "Travel",
+    views: "18.2K",
+    duration: "12:48"
+  },
+
+  {
+    title: "Building a Mini PC",
+    category: "Tech",
+    views: "9.4K",
+    duration: "08:21"
+  },
+
+  {
+    title: "Easy Weekend Pasta",
+    category: "Cooking",
+    views: "7.8K",
+    duration: "06:13"
+  },
+
+  {
+    title: "Indie Game First Look",
+    category: "Gaming",
+    views: "22.1K",
+    duration: "15:02"
+  },
+
+  {
+    title: "Lo-fi Studio Session",
+    category: "Music",
+    views: "31.6K",
+    duration: "04:47"
+  },
+
+  {
+    title: "Phone Camera Tricks",
+    category: "Tech",
+    views: "12.7K",
+    duration: "05:36"
+  },
+
+  {
+    title: "Hidden Beach Guide",
+    category: "Travel",
+    views: "16.9K",
+    duration: "10:18"
+  },
+
+  {
+    title: "One-Pan Breakfast",
+    category: "Cooking",
+    views: "6.2K",
+    duration: "07:05"
+  }
+
+];
+
+
+
+/* =========================
+   RENDER VIDEOS
+========================= */
+
+function renderVideos(list) {
+
+  const grid =
+    document.getElementById("videoGrid");
+
+  grid.innerHTML = "";
+
+
+  list.forEach((video, index) => {
+
+    const card =
+      document.createElement("article");
+
+    card.className = "video-card";
+
+
+    card.innerHTML = `
+
+      <div
+        class="thumbnail"
+        style="
+          background:
+          linear-gradient(
+            135deg,
+            hsl(${190 + index * 35} 45% 30%),
+            #101620
+          );
+        "
+      >
+
+        <div class="play-icon">
+          ▶
+        </div>
+
+        <span class="duration">
+          ${video.duration}
+        </span>
+
+      </div>
+
+
+      <div class="video-info">
+
+        <div class="video-title">
+          ${video.title}
+        </div>
+
+        <div class="video-meta">
+          ${video.category}
+          ·
+          ${video.views} views
+        </div>
+
+
+        <div class="video-actions">
+
+          <a
+            href="#"
+            class="watch-btn"
+            onclick="watchVideo(event, '${video.title}')"
+          >
+            ▶ Watch
+          </a>
+
+          <a
+            href="#"
+            class="download-btn"
+            onclick="downloadVideo(event, '${video.title}')"
+          >
+            ⬇ Download
+          </a>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    grid.appendChild(card);
+
+  });
+
+
+  document.getElementById("videoCount")
+    .textContent =
+    list.length + " videos";
+
+}
+
+
+
+/* =========================
+   CATEGORY FILTER
+========================= */
+
+function filterVideos(category, button) {
+
+  document
+    .querySelectorAll(".category")
+    .forEach(btn => {
+
+      btn.classList.remove("active");
+
+    });
+
+
+  button.classList.add("active");
+
+
+  if (category === "All") {
+
+    renderVideos(videos);
+
+    return;
+
+  }
+
+
+  if (category === "Trending") {
+
+    const trending =
+      videos.filter(video => {
+
+        return parseFloat(
+          video.views.replace("K", "")
+        ) >= 15;
+
+      });
+
+    renderVideos(trending);
+
+    return;
+
+  }
+
+
+  const filtered =
+    videos.filter(video => {
+
+      return video.category === category;
+
+    });
+
+
+  renderVideos(filtered);
+
+}
+
+
+
+/* =========================
+   SEARCH
+========================= */
+
+function searchVideos() {
+
+  const query =
+    document
+      .getElementById("searchInput")
+      .value
+      .toLowerCase()
+      .trim();
+
+
+  if (!query) {
+
+    renderVideos(videos);
+
+    return;
+
+  }
+
+
+  const results =
+    videos.filter(video => {
+
+      return (
+        video.title +
+        " " +
+        video.category
+      )
+      .toLowerCase()
+      .includes(query);
+
+    });
+
+
+  renderVideos(results);
+
+}
+
+
+
+/* =========================
+   DARK / LIGHT MODE
+========================= */
+
+function toggleTheme() {
+
+  document.body.classList.toggle("light");
+
+
+  const isLight =
+    document.body.classList.contains("light");
+
+
+  localStorage.setItem(
+    "vidohub-theme",
+    isLight ? "light" : "dark"
+  );
+
+
+  document.getElementById(
+    "themeButton"
+  ).textContent =
+    isLight ? "☀️" : "🌙";
+
+}
+
+
+
+/* LOAD SAVED THEME */
+
+function loadTheme() {
+
+  const saved =
+    localStorage.getItem("vidohub-theme");
+
+
+  if (saved === "light") {
+
+    document.body.classList.add("light");
+
+    document.getElementById(
+      "themeButton"
+    ).textContent = "☀️";
+
+  }
+
+}
+
+
+
+/* =========================
+   WATCH
+========================= */
+
+function watchVideo(event, title) {
+
+  event.preventDefault();
+
+  alert(
+    "Video page for \"" +
+    title +
+    "\" will be connected to the video player in the next stage."
+  );
+
+}
+
+
+
+/* =========================
+   DOWNLOAD
+========================= */
+
+function downloadVideo(event, title) {
+
+  event.preventDefault();
+
+  alert(
+    "The download button is ready. " +
+    "It will be connected to your authorized " +
+    "video files through the backend."
+  );
+
+}
+
+
+
+/* =========================
+   IMPORTER
+========================= */
+
+function importVideo() {
+
+  const url =
+    document.getElementById("videoUrl").value.trim();
+
+
+  if (!url) {
+
+    alert("Please enter a video URL.");
+
+    return;
+
+  }
+
+
+  alert(
+    "Importer request received.\n\n" +
+    "The backend importer will process supported " +
+    "authorized sources in the next stage."
+  );
+
+}
+
+
+
+/* =========================
+   UPLOAD
+========================= */
+
+function openUpload() {
+
+  alert(
+    "The upload system will be connected to " +
+    "your backend in the next stage."
+  );
+
+}
+
+
+
+/* =========================
+   CONTACT
+========================= */
+
+function sendMessage(event) {
+
+  event.preventDefault();
+
+
+  alert(
+    "Your message form is ready. " +
+    "The backend email/contact system will be connected next."
+  );
+
+}
+
+
+
+/* =========================
+   START
+========================= */
+
+loadTheme();
+
+renderVideos(videos);
+
+</script>
+
+</body>
+</html>
