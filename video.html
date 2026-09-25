@@ -1,277 +1,166 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-<meta charset="utf-8">
-
-<meta
-  name="viewport"
-  content="width=device-width,initial-scale=1"
->
-
-<title>Video — Tube</title>
-
-<link
-  rel="stylesheet"
-  href="style.css"
->
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video - Tube</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <header class="site-header">
+  <div class="header-inner">
 
-<div class="header-inner">
+    <button class="menu-btn" data-menu>☰</button>
 
-<button
-  class="menu-btn"
-  data-menu
->
-☰
-</button>
+    <a class="brand" href="index.html">Tube</a>
 
-<a
-  class="brand"
-  href="index.html"
->
-Tube
-</a>
+    <div class="search">
+      <input type="search" placeholder="Search videos...">
+    </div>
 
-<div class="search">
+    <div class="header-actions">
+      <select class="language" data-lang>
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+        <option value="es">ES</option>
+      </select>
 
-<input
-  type="search"
-  placeholder="Search..."
->
+      <button class="icon-btn" data-theme>🌙</button>
+    </div>
 
-</div>
-
-<div class="header-actions">
-
-<select
-  class="language"
-  data-lang
->
-
-<option value="en">EN</option>
-<option value="fr">FR</option>
-<option value="es">ES</option>
-<option value="de">DE</option>
-<option value="pt">PT</option>
-<option value="it">IT</option>
-
-</select>
-
-<button
-  class="icon-btn"
-  data-theme
->
-☀️/🌙
-</button>
-
-</div>
-
-</div>
-
+  </div>
 </header>
 
-
-<div
-  class="overlay"
-  data-overlay
-></div>
-
+<div class="overlay" data-overlay></div>
 
 <div class="layout">
 
+  <aside class="sidebar">
 
-<aside class="sidebar">
+    <a class="side-link" href="index.html">🏠 <span>Home</span></a>
+    <a class="side-link" href="videos.html">🎬 <span>Videos</span></a>
+    <a class="side-link" href="categories.html">📂 <span>Categories</span></a>
+    <a class="side-link" href="photos.html">🖼️ <span>Photos</span></a>
+    <a class="side-link" href="community.html">👥 <span>Community</span></a>
+    <a class="side-link" href="tags.html">🏷️ <span>Tags</span></a>
 
-<a
-  class="side-link"
-  href="index.html"
->
-<span>🏠</span>
-Home
-</a>
+    <a class="side-link upload-link" href="upload.html">
+      ⬆️ Upload
+    </a>
 
-<a
-  class="side-link"
-  href="videos.html"
->
-<span>🎬</span>
-Videos
-</a>
+  </aside>
 
-<a
-  class="side-link"
-  href="photos.html"
->
-<span>🖼️</span>
-Photos
-</a>
+  <main class="main">
 
-<a
-  class="side-link"
-  href="categories.html"
->
-<span>📁</span>
-Categories
-</a>
+    <section id="videoPage">
 
-<a
-  class="side-link"
-  href="tags.html"
->
-<span>🏷️</span>
-Tags
-</a>
+      <div class="video-player-wrap">
 
-<a
-  class="side-link"
-  href="community.html"
->
-<span>👥</span>
-Community
-</a>
+        <video
+          id="mainVideo"
+          class="main-video"
+          controls
+          playsinline
+          preload="metadata"
+        >
+          Your browser does not support video playback.
+        </video>
 
-<a
-  class="side-link upload-link"
-  href="upload.html"
->
-<span>⬆️</span>
-Upload
-</a>
+      </div>
 
-</aside>
+      <div class="video-info">
 
+        <h1 id="videoTitle">Loading video...</h1>
 
-<main class="main">
+        <div class="video-meta">
+          <span id="videoViews"></span>
+          <span id="videoCategory"></span>
+        </div>
 
+        <div class="video-actions">
 
-<div
-  class="video-page"
-  id="video-page"
-></div>
+          <button class="btn" id="likeBtn">
+            👍 Like <span id="likeCount">0</span>
+          </button>
 
+          <button class="btn" id="dislikeBtn">
+            👎 Dislike <span id="dislikeCount">0</span>
+          </button>
 
-<section class="section-title">
+          <a
+            class="btn"
+            id="downloadBtn"
+            href="#"
+            download
+          >
+            ⬇️ Download
+          </a>
 
-<h2>
-🔥 Trending Videos
-</h2>
+        </div>
 
-</section>
+        <div class="video-tags" id="videoTags"></div>
 
+      </div>
 
-<div
-  class="grid"
-  id="trending-grid"
-></div>
+    </section>
 
+    <section>
 
-</main>
+      <div class="section-title">
+        <h2>Trending Videos</h2>
+      </div>
+
+      <div class="grid" id="trendingGrid"></div>
+
+    </section>
+
+  </main>
 
 </div>
-
 
 <footer class="footer">
 
-<div class="footer-grid">
+  <div class="footer-grid">
 
-<div>
+    <div>
+      <h3>Tube</h3>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="advertise.html">Advertise</a>
+    </div>
 
-<h3>Information</h3>
+    <div>
+      <h3>Community</h3>
+      <a href="community.html">Community</a>
+      <a href="partner.html">Partner</a>
+      <a href="upload.html">Upload</a>
+    </div>
 
-<a href="about.html">
-About Us
-</a>
+    <div>
+      <h3>Help</h3>
+      <a href="faq.html">FAQ</a>
+      <a href="report.html">Report</a>
+      <a href="dmca.html">DMCA</a>
+    </div>
 
-<a href="terms.html">
-Terms & Conditions
-</a>
+    <div>
+      <h3>Legal</h3>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </div>
 
-<a href="privacy.html">
-Privacy Policy
-</a>
+  </div>
 
-<a href="dmca.html">
-Copyright / DMCA
-</a>
-
-</div>
-
-
-<div>
-
-<h3>Work With Us</h3>
-
-<a href="upload.html">
-Upload
-</a>
-
-<a href="advertise.html">
-Advertise
-</a>
-
-<a href="partner.html">
-Partner With Us
-</a>
-
-</div>
-
-
-<div>
-
-<h3>Support & Help</h3>
-
-<a href="faq.html">
-FAQ
-</a>
-
-<a href="contact.html">
-Contact Us
-</a>
-
-<a href="report.html">
-Report a Problem
-</a>
-
-</div>
-
-
-<div>
-
-<h3>Follow Us</h3>
-
-<a href="community.html">
-Telegram
-</a>
-
-<a href="community.html">
-Community
-</a>
-
-</div>
-
-</div>
-
-
-<div class="copyright">
-
-© 2026 Tube — All Rights Reserved
-
-</div>
+  <div class="copyright">
+    © 2026 Tube. All rights reserved.
+  </div>
 
 </footer>
 
-
 <script src="videos-data.js"></script>
-
 <script src="app.js"></script>
 
 </body>
-
 </html>
