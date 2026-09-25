@@ -1,1 +1,811 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Log In — YourSite</title><link rel="stylesheet" href="style.css"></head><body><header class="site-header"><div class="header-inner"><button class="menu-btn" data-menu aria-label="Open menu">☰</button><a class="brand" href="index.html">YourSite</a><div class="search"><input aria-label="Search" placeholder="Search..."></div><div class="header-actions"><select class="language" data-lang aria-label="Language"><option value="en">EN</option><option value="fr">FR</option><option value="es">ES</option><option value="de">DE</option><option value="pt">PT</option><option value="it">IT</option></select><button class="icon-btn" data-theme aria-label="Toggle theme">☀️/🌙</button></div></div></header><div class="overlay" data-overlay></div><div class="layout"><aside class="sidebar"><a class="side-link" href="index.html"><span>🏠</span>Home</a><a class="side-link" href="videos.html"><span>🎬</span>Videos</a><a class="side-link" href="photos.html"><span>🖼️</span>Photos</a><a class="side-link" href="categories.html"><span>📁</span>Categories</a><a class="side-link" href="tags.html"><span>🏷️</span>Tags</a><a class="side-link" href="community.html"><span>👥</span>Community</a><a class="side-link upload-link" href="upload.html"><span>⬆️</span>Upload</a></aside><main class="main"><section class="form"><h1>Log In</h1><p class="muted">Access your account.</p><div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div><div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div><button class="btn primary" type="button" data-login>Log In</button><p class="muted" data-auth-message aria-live="polite"></p><p class="muted">Don't have an account? <a href="signup.html">Create one</a></p></section></main></div><footer class="footer"><div class="footer-grid"><div><h3>Information</h3><a href="about.html">About Us</a><a href="terms.html">Terms & Conditions</a><a href="privacy.html">Privacy Policy</a><a href="dmca.html">Copyright / DMCA</a></div><div><h3>Work With Us</h3><a href="upload.html">Upload</a><a href="advertise.html">Advertise</a><a href="partner.html">Partner With Us</a></div><div><h3>Support & Help</h3><a href="faq.html">FAQ</a><a href="contact.html">Contact Us</a><a href="report.html">Report a Problem</a></div><div><h3>Follow Us</h3><a href="community.html">Community</a></div></div><div class="copyright">© 2026 YourSite — All Rights Reserved</div></footer><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+
+  <meta
+    name="description"
+    content="Login or create your YourSite account"
+  >
+
+  <title>Login — YourSite</title>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
+  <style>
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .auth-page {
+      width: 100%;
+      max-width: 1050px;
+      min-height: 620px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+      border-radius: 24px;
+      background: var(--card, #151515);
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    .auth-visual {
+      position: relative;
+      min-height: 620px;
+      padding: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      background:
+        linear-gradient(
+          rgba(0,0,0,.35),
+          rgba(0,0,0,.8)
+        ),
+        linear-gradient(
+          135deg,
+          #252525,
+          #111
+        );
+    }
+
+    .auth-visual h1 {
+      font-size: 42px;
+      margin: 0 0 15px;
+    }
+
+    .auth-visual p {
+      max-width: 430px;
+      line-height: 1.7;
+      opacity: .8;
+    }
+
+    .auth-form {
+      padding: 45px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-brand {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+      margin-top: 0;
+      opacity: .7;
+      margin-bottom: 30px;
+    }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 25px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+
+    .auth-tab {
+      border: 0;
+      background: transparent;
+      padding: 14px;
+      color: inherit;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .auth-tab.active {
+      border-bottom: 2px solid currentColor;
+      font-weight: 700;
+    }
+
+    .auth-form-group {
+      margin-bottom: 17px;
+    }
+
+    .auth-form-group label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .auth-form-group input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px 15px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.05);
+      color: inherit;
+      outline: none;
+    }
+
+    .auth-form-group input:focus {
+      border-color: #888;
+    }
+
+    .auth-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 10px 0 20px;
+      font-size: 13px;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .forgot {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .auth-submit {
+      width: 100%;
+      border: 0;
+      cursor: pointer;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 25px 0;
+      opacity: .5;
+      font-size: 13px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: currentColor;
+    }
+
+    .social-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .social-btn {
+      padding: 13px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .auth-message {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .back-home {
+      display: block;
+      text-align: center;
+      margin-top: 25px;
+      color: inherit;
+      text-decoration: none;
+      opacity: .7;
+    }
+
+    .register-only {
+      display: none;
+    }
+
+    @media (max-width: 800px) {
+
+      body {
+        padding: 0;
+        align-items: stretch;
+      }
+
+      .auth-page {
+        min-height: 100vh;
+        border-radius: 0;
+        grid-template-columns: 1fr;
+      }
+
+      .auth-visual {
+        min-height: 220px;
+        padding: 30px;
+      }
+
+      .auth-visual h1 {
+        font-size: 30px;
+      }
+
+      .auth-form {
+        padding: 30px 22px;
+      }
+
+    }
+
+    @media (max-width: 420px) {
+
+      .social-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-options {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <div class="auth-page">
+
+    <section class="auth-visual">
+
+      <div>
+
+        <div class="auth-brand">
+          YourSite
+        </div>
+
+        <h1>
+          Discover.
+          Watch.
+          Connect.
+        </h1>
+
+        <p>
+          Create an account to save videos,
+          build your favorites and become
+          part of the YourSite community.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <section class="auth-form">
+
+      <div class="auth-tabs">
+
+        <button
+          type="button"
+          class="auth-tab active"
+          id="loginTab"
+        >
+          Login
+        </button>
+
+        <button
+          type="button"
+          class="auth-tab"
+          id="registerTab"
+        >
+          Register
+        </button>
+
+      </div>
+
+
+      <form id="authForm">
+
+        <div class="auth-form-group">
+
+          <label for="email">
+            Email
+          </label>
+
+          <input
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          >
+
+        </div>
+
+
+        <div class="auth-form-group">
+
+          <label for="password">
+            Password
+          </label>
+
+          <input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          >
+
+        </div>
+
+
+        <div
+          class="auth-form-group register-only"
+          id="confirmPasswordGroup"
+        >
+
+          <label for="confirmPassword">
+            Confirm Password
+          </label>
+
+          <input
+            id="confirmPassword"
+            type="password"
+            placeholder="Confirm your password"
+            autocomplete="new-password"
+          >
+
+        </div>
+
+
+        <div
+          class="auth-options"
+          id="loginOptions"
+        >
+
+          <label class="remember">
+
+            <input
+              type="checkbox"
+              id="remember"
+            >
+
+            Remember me
+
+          </label>
+
+
+          <a
+            href="#"
+            class="forgot"
+            id="forgotPassword"
+          >
+            Forgot password?
+          </a>
+
+        </div>
+
+
+        <button
+          type="submit"
+          class="btn primary auth-submit"
+          id="submitButton"
+        >
+          Login
+        </button>
+
+
+      </form>
+
+
+      <div class="auth-divider">
+        OR
+      </div>
+
+
+      <div class="social-buttons">
+
+        <button
+          type="button"
+          class="social-btn"
+          id="googleLogin"
+        >
+          Google
+        </button>
+
+        <button
+          type="button"
+          class="social-btn"
+          id="githubLogin"
+        >
+          GitHub
+        </button>
+
+      </div>
+
+
+      <div
+        class="auth-message"
+        id="authMessage"
+      ></div>
+
+
+      <a
+        class="back-home"
+        href="index.html"
+      >
+        ← Back to YourSite
+      </a>
+
+    </section>
+
+  </div>
+
+
+  <!-- SUPABASE -->
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script src="supabase-config.js"></script>
+
+
+  <script>
+
+    const authForm =
+      document.getElementById("authForm");
+
+    const loginTab =
+      document.getElementById("loginTab");
+
+    const registerTab =
+      document.getElementById("registerTab");
+
+    const submitButton =
+      document.getElementById("submitButton");
+
+    const confirmPasswordGroup =
+      document.getElementById("confirmPasswordGroup");
+
+    const confirmPassword =
+      document.getElementById("confirmPassword");
+
+    const loginOptions =
+      document.getElementById("loginOptions");
+
+    const authMessage =
+      document.getElementById("authMessage");
+
+    const forgotPassword =
+      document.getElementById("forgotPassword");
+
+    const googleLogin =
+      document.getElementById("googleLogin");
+
+    const githubLogin =
+      document.getElementById("githubLogin");
+
+
+    let mode = "login";
+
+
+    function showMessage(message, error = false) {
+
+      authMessage.textContent = message;
+
+      authMessage.style.color =
+        error ? "#ff6b6b" : "inherit";
+
+    }
+
+
+    function setMode(newMode) {
+
+      mode = newMode;
+
+      const register =
+        mode === "register";
+
+
+      loginTab.classList.toggle(
+        "active",
+        !register
+      );
+
+      registerTab.classList.toggle(
+        "active",
+        register
+      );
+
+
+      confirmPasswordGroup.style.display =
+        register ? "block" : "none";
+
+
+      loginOptions.style.display =
+        register ? "none" : "flex";
+
+
+      submitButton.textContent =
+        register ? "Create Account" : "Login";
+
+
+      confirmPassword.required =
+        register;
+
+
+      showMessage("");
+
+    }
+
+
+    loginTab.addEventListener(
+      "click",
+      () => setMode("login")
+    );
+
+
+    registerTab.addEventListener(
+      "click",
+      () => setMode("register")
+    );
+
+
+    authForm.addEventListener(
+      "submit",
+      async function(event) {
+
+        event.preventDefault();
+
+        const email =
+          document.getElementById("email").value.trim();
+
+        const password =
+          document.getElementById("password").value;
+
+
+        if (!email || !password) {
+
+          showMessage(
+            "Please enter your email and password.",
+            true
+          );
+
+          return;
+
+        }
+
+
+        submitButton.disabled = true;
+
+
+        try {
+
+          if (mode === "register") {
+
+            if (
+              password !==
+              confirmPassword.value
+            ) {
+
+              showMessage(
+                "Passwords do not match.",
+                true
+              );
+
+              submitButton.disabled = false;
+
+              return;
+
+            }
+
+
+            const {
+              data,
+              error
+            } =
+              await supabaseClient.auth.signUp({
+                email,
+                password
+              });
+
+
+            if (error) {
+              throw error;
+            }
+
+
+            showMessage(
+              "Account created. Check your email if confirmation is required."
+            );
+
+          } else {
+
+            const {
+              data,
+              error
+            } =
+              await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+              });
+
+
+            if (error) {
+              throw error;
+            }
+
+
+            showMessage(
+              "Login successful. Redirecting..."
+            );
+
+
+            setTimeout(
+              () => {
+                window.location.href =
+                  "index.html";
+              },
+              700
+            );
+
+          }
+
+        } catch (error) {
+
+          showMessage(
+            error.message ||
+            "Something went wrong.",
+            true
+          );
+
+        }
+
+
+        submitButton.disabled = false;
+
+      }
+    );
+
+
+    forgotPassword.addEventListener(
+      "click",
+      async function(event) {
+
+        event.preventDefault();
+
+
+        const email =
+          document.getElementById("email").value.trim();
+
+
+        if (!email) {
+
+          showMessage(
+            "Enter your email first.",
+            true
+          );
+
+          return;
+
+        }
+
+
+        try {
+
+          const {
+            error
+          } =
+            await supabaseClient.auth.resetPasswordForEmail(
+              email,
+              {
+                redirectTo:
+                  window.location.origin +
+                  "/reset-password.html"
+              }
+            );
+
+
+          if (error) {
+            throw error;
+          }
+
+
+          showMessage(
+            "Password reset instructions have been sent to your email."
+          );
+
+        } catch (error) {
+
+          showMessage(
+            error.message ||
+            "Unable to send reset email.",
+            true
+          );
+
+        }
+
+      }
+    );
+
+
+    googleLogin.addEventListener(
+      "click",
+      async function() {
+
+        const {
+          error
+        } =
+          await supabaseClient.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo:
+                window.location.origin +
+                "/index.html"
+            }
+          });
+
+
+        if (error) {
+
+          showMessage(
+            error.message,
+            true
+          );
+
+        }
+
+      }
+    );
+
+
+    githubLogin.addEventListener(
+      "click",
+      async function() {
+
+        const {
+          error
+        } =
+          await supabaseClient.auth.signInWithOAuth({
+            provider: "github",
+            options: {
+              redirectTo:
+                window.location.origin +
+                "/index.html"
+            }
+          });
+
+
+        if (error) {
+
+          showMessage(
+            error.message,
+            true
+          );
+
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+</html>
