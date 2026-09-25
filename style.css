@@ -4,3 +4,222 @@
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.sidebar{position:fixed;z-index:1100;left:-270px;top:64px;bottom:0;width:250px;transition:left .2s;overflow:auto;box-shadow:var(--shadow)}body.menu-open .sidebar{left:0}.menu-btn{display:inline-flex}.overlay{position:fixed;inset:64px 0 0;background:rgba(0,0,0,.45);z-index:1050}.body.menu-open .overlay,body.menu-open .overlay{display:block}.main{padding:18px}.search{max-width:none}}
 @media(max-width:600px){.header-inner{padding:0 10px;gap:7px}.brand{font-size:17px}.search{display:none}.header-actions{margin-left:auto}.grid{grid-template-columns:1fr}.hero{padding:20px}.footer-grid{grid-template-columns:repeat(2,1fr)}.main{padding:14px}.language{padding:8px}.header-actions .icon-btn{padding:8px}}
 @media(max-width:380px){.footer-grid{grid-template-columns:1fr}.brand{font-size:16px}}
+/* =========================
+   TUBE VIDEO GRID
+========================= */
+
+.grid {
+  display: grid;
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.card {
+  cursor: pointer;
+  position: relative;
+}
+
+.card .thumb {
+  position: relative;
+  overflow: hidden;
+}
+
+.card .thumb img,
+.card .thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card .thumb video {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.card.is-previewing
+.thumb img {
+  display: none;
+}
+
+.card.is-previewing
+.thumb video {
+  display: block;
+}
+
+.preview-label {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(0,0,0,.75);
+  color: white;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.card-body {
+  padding: 9px;
+}
+
+.card h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+
+/* =========================
+   PAGINATION
+========================= */
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 28px 0;
+  flex-wrap: wrap;
+}
+
+.pagination button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pagination button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+
+/* =========================
+   VIDEO PAGE
+========================= */
+
+.video-page {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.video-player {
+  aspect-ratio: 16 / 9;
+  background: #000;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.video-player video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.video-placeholder {
+  color: #b8c0cb;
+}
+
+.video-info {
+  padding: 16px;
+}
+
+.video-info h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.video-actions {
+  display: flex;
+  gap: 8px;
+  margin: 15px 0;
+}
+
+.vote-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 9px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.vote-btn.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+
+  .grid {
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+  }
+
+}
+
+
+@media (max-width: 900px) {
+
+  .grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+  .card-body {
+    padding: 7px;
+  }
+
+  .card h3 {
+    font-size: 12px;
+  }
+
+  .meta {
+    font-size: 11px;
+  }
+
+}
+
+
+@media (max-width: 380px) {
+
+  .grid {
+    gap: 6px;
+  }
+
+}
