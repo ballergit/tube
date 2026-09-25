@@ -2,814 +2,773 @@
 
   const root = document.documentElement;
 
-  /* =========================
-     THEME
-  ========================= */
-
   const savedTheme = localStorage.getItem("theme");
 
   if (savedTheme === "dark") {
     root.classList.add("dark");
   }
 
+  const savedLang = localStorage.getItem("lang") || "en";
+
+  document.addEventListener("DOMContentLoaded", function () {
+
+    /* =========================
+       THEME
+    ========================= */
+
+    document.querySelectorAll("[data-theme]").forEach(function (button) {
+
+      button.addEventListener("click", function () {
+
+        root.classList.toggle("dark");
+
+        localStorage.setItem(
+          "theme",
+          root.classList.contains("dark") ? "dark" : "light"
+        );
+
+      });
+
+    });
+
+
+    /* =========================
+       MOBILE MENU
+    ========================= */
+
+    document.querySelectorAll("[data-menu]").forEach(function (button) {
+
+      button.addEventListener("click", function () {
+
+        document.body.classList.toggle("menu-open");
+
+      });
+
+    });
+
+
+    document.querySelectorAll("[data-overlay]").forEach(function (overlay) {
+
+      overlay.addEventListener("click", function () {
+
+        document.body.classList.remove("menu-open");
+
+      });
+
+    });
+
+
+    /* =========================
+       LANGUAGE
+    ========================= */
+
+    document.querySelectorAll("[data-lang]").forEach(function (select) {
+
+      select.value = savedLang;
+
+      select.addEventListener("change", function () {
+
+        localStorage.setItem("lang", select.value);
+
+      });
+
+    });
+
+
+    /* =========================
+       ACTIVE NAVIGATION
+    ========================= */
+
+    const currentPage =
+      location.pathname.split("/").pop() || "index.html";
+
+    document.querySelectorAll(".side-link").forEach(function (link) {
+
+      if (link.getAttribute("href") === currentPage) {
+
+        link.classList.add("active");
+
+      }
+
+    });
+
+
+    /* =========================
+       VIDEO DATA
+    ========================= */
+
+    const videos = Array.isArray(window.TUBE_VIDEOS)
+      ? window.TUBE_VIDEOS
+      : [];
+
+
+    /* =========================
+       CREATE VIDEO CARD
+    ========================= */
+
+    function createVideoCard(video) {
+
+      const card = document.createElement("a");
+
+      card.className = "card video-card";
+
+      card.href = "video.html?id=" + encodeURIComponent(video.id);
+
+      card.innerHTML = `
+        <div class="thumb video-thumb">
+
+          <img
+            src="${video.thumbnail || "https://placehold.co/640x360?text=Tube"}"
+            alt=""
+            loading="lazy"
+          >
+
+          ${
+            video.preview
+              ? `
+                <video
+                  class="preview-video"
+                  muted
+                  playsinline
+                  preload="metadata"
+                ></video>
+              `
+              : ""
+          }
+
+        </div>
+
+        <div class="card-body">
+
+          <h3>${escapeHTML(video.title || "Untitled Video")}</h3>
+
+          <div class="muted">
+            ${formatViews(video.views || 0)} views
+          </div>
+
+        </div>
+      `;
+
+
+      /* =========================
+         DESKTOP HOVER PREVIEW
+      ========================= */
+
+      const preview = card.querySelector(".preview-video");
+
+      let previewTimer = null;
+      let longPressTriggered = false;
+
+
+      if (preview && video.preview) {
+
+        preview.src = video.preview;
+
+
+        card.addEventListener("mouseenter", function () {
+
+          previewTimer = setTimeout(function () {
+
+            preview.play().catch(function () {});
+
+          }, 500);
+
+        });
+
+
+        card.addEventListener("mouseleave", function () {
+
+          clearTimeout(previewTimer);
+
+          preview.pause();
+          preview.currentTime = 0;
+
+        });
+
+
+        /* =========================
+           MOBILE PRESS AND HOLD
+        ========================= */
+
+        let touchTimer = null;
+
+        card.addEventListener(
+          "touchstart",
+          function () {
+
+            longPressTriggered = false;
+
+            touchTimer = setTimeout(function () {
+
+              longPressTriggered = true;
+
+              preview.play().catch(function () {});
+
+            }, 500);
+
+          },
+          { passive: true }
+        );
+
+
+        card.addEventListener(
+          "touchend",
+          function () {
+
+            clearTimeout(touchTimer);
+
+            preview.pause();
+            preview.currentTime = 0;
+
+          },
+          { passive: true }
+        );
+
+
+        card.addEventListener(
+          "touchcancel",
+          function () {
+
+            clearTimeout(touchTimer);
+
+            preview.pause();
+            preview.currentTime = 0;
+
+          },
+          { passive: true }
+        );
+
+
+        card.addEventListener("click", function (event) {
+
+          if (longPressTriggered) {
+
+            event.preventDefault();
+
+            longPressTriggered = false;
+
+          }
+
+        });
+
+      }
+
+      return card;
+
+    }
+
+
+    /* =========================
+       HOME PAGE
+    ========================= */
+
+    const videoGrid = document.getElementById("videoGrid");
+
+    if (videoGrid) {
+
+      const perPage = 30;
+
+      const pagination = document.getElementById("pagination");
+
+      let currentPageNumber = 1;
+
+      const totalPages = Math.max(
+        1,
+        Math.ceil(videos.length / perPage)
+      );
+
+
+      function renderPage(page) {
+
+        currentPageNumber = page;
+
+        videoGrid.innerHTML = "";
+
+        const start = (page - 1) * perPage;
+
+        const end = start + perPage;
+
+        const pageVideos = videos.slice(start, end);
+
+
+        if (pageVideos.length === 0) {
+
+          videoGrid.innerHTML = `
+            <p class="muted">
+              No videos available yet.
+            </p>
+          `;
+
+        } else {
+
+          pageVideos.forEach(function (video) {
+
+            videoGrid.appendChild(
+              createVideoCard(video)
+            );
+
+          });
+
+        }
+
+
+        renderPagination();
+
+      }
+
+
+      function renderPagination() {
+
+        if (!pagination) return;
+
+        pagination.innerHTML = "";
+
+
+        if (totalPages <= 1) return;
+
+
+        const previous = document.createElement("button");
+
+        previous.className = "btn";
+
+        previous.textContent = "Previous";
+
+        previous.disabled = currentPageNumber === 1;
+
+
+        previous.addEventListener("click", function () {
+
+          if (currentPageNumber > 1) {
+
+            renderPage(currentPageNumber - 1);
+
+            window.scrollTo({
+              top: 0,
+              behavior: "smooth"
+            });
+
+          }
+
+        });
+
+
+        pagination.appendChild(previous);
+
+
+        for (
+          let page = 1;
+          page <= totalPages;
+          page++
+        ) {
+
+          const button = document.createElement("button");
+
+          button.className =
+            "btn " +
+            (page === currentPageNumber
+              ? "primary"
+              : "");
+
+          button.textContent = page;
+
+
+          button.addEventListener("click", function () {
+
+            renderPage(page);
+
+            window.scrollTo({
+              top: 0,
+              behavior: "smooth"
+            });
+
+          });
+
+
+          pagination.appendChild(button);
+
+        }
+
+
+        const next = document.createElement("button");
+
+        next.className = "btn";
+
+        next.textContent = "Next";
+
+        next.disabled =
+          currentPageNumber === totalPages;
+
+
+        next.addEventListener("click", function () {
+
+          if (currentPageNumber < totalPages) {
+
+            renderPage(currentPageNumber + 1);
+
+            window.scrollTo({
+              top: 0,
+              behavior: "smooth"
+            });
+
+          }
+
+        });
+
+
+        pagination.appendChild(next);
+
+      }
+
+
+      renderPage(1);
+
+    }
+
+
+    /* =========================
+       VIDEO PAGE
+    ========================= */
+
+    const mainVideo = document.getElementById("mainVideo");
+
+
+    if (mainVideo) {
+
+      const params = new URLSearchParams(
+        window.location.search
+      );
+
+      const videoId = params.get("id");
+
+
+      const video = videos.find(function (item) {
+
+        return String(item.id) === String(videoId);
+
+      });
+
+
+      if (!video) {
+
+        document.getElementById("videoTitle").textContent =
+          "Video not found";
+
+        mainVideo.style.display = "none";
+
+        return;
+
+      }
+
+
+      /* =========================
+         VIDEO PLAYER
+      ========================= */
+
+      if (video.video) {
+
+        mainVideo.src = video.video;
+
+      } else if (video.preview) {
+
+        mainVideo.src = video.preview;
+
+      }
+
+
+      /* =========================
+         VIDEO INFORMATION
+      ========================= */
+
+      document.getElementById("videoTitle").textContent =
+        video.title || "Untitled Video";
+
+
+      document.getElementById("videoViews").textContent =
+        formatViews(video.views || 0) + " views";
+
+
+      document.getElementById("videoCategory").textContent =
+        video.category || "Uncategorized";
+
+
+      /* =========================
+         DOWNLOAD BUTTON
+      ========================= */
+
+      const downloadButton =
+        document.getElementById("downloadBtn");
+
+
+      if (downloadButton) {
+
+        if (video.download) {
+
+          downloadButton.href = video.download;
+
+          downloadButton.setAttribute(
+            "download",
+            ""
+          );
+
+          downloadButton.style.display =
+            "inline-flex";
+
+        } else if (video.video) {
+
+          downloadButton.href = video.video;
+
+          downloadButton.setAttribute(
+            "download",
+            ""
+          );
+
+          downloadButton.style.display =
+            "inline-flex";
+
+        } else {
+
+          downloadButton.style.display =
+            "none";
+
+        }
+
+      }
+
+
+      /* =========================
+         TAGS
+      ========================= */
+
+      const tagsContainer =
+        document.getElementById("videoTags");
+
+
+      if (tagsContainer) {
+
+        tagsContainer.innerHTML = "";
+
+        if (Array.isArray(video.tags)) {
+
+          video.tags.forEach(function (tag) {
+
+            const tagElement =
+              document.createElement("span");
+
+            tagElement.className = "tag";
+
+            tagElement.textContent =
+              "#" + tag;
+
+            tagsContainer.appendChild(
+              tagElement
+            );
+
+          });
+
+        }
+
+      }
+
+
+      /* =========================
+         LIKE / DISLIKE
+      ========================= */
+
+      const likeButton =
+        document.getElementById("likeBtn");
+
+      const dislikeButton =
+        document.getElementById("dislikeBtn");
+
+      const likeCount =
+        document.getElementById("likeCount");
+
+      const dislikeCount =
+        document.getElementById("dislikeCount");
+
+
+      let liked = false;
+      let disliked = false;
+
+
+      let likes = Number(video.likes || 0);
+
+      let dislikes =
+        Number(video.dislikes || 0);
+
+
+      function updateReactionDisplay() {
+
+        likeCount.textContent = likes;
+
+        dislikeCount.textContent = dislikes;
+
+
+        likeButton.classList.toggle(
+          "primary",
+          liked
+        );
+
+
+        dislikeButton.classList.toggle(
+          "primary",
+          disliked
+        );
+
+      }
+
+
+      likeButton.addEventListener(
+        "click",
+        function () {
+
+          if (liked) {
+
+            liked = false;
+            likes--;
+
+          } else {
+
+            liked = true;
+
+            if (disliked) {
+
+              disliked = false;
+              dislikes--;
+
+            }
+
+            likes++;
+
+          }
+
+          updateReactionDisplay();
+
+        }
+      );
+
+
+      dislikeButton.addEventListener(
+        "click",
+        function () {
+
+          if (disliked) {
+
+            disliked = false;
+            dislikes--;
+
+          } else {
+
+            disliked = true;
+
+            if (liked) {
+
+              liked = false;
+              likes--;
+
+            }
+
+            dislikes++;
+
+          }
+
+          updateReactionDisplay();
+
+        }
+      );
+
+
+      updateReactionDisplay();
+
+
+      /* =========================
+         TRENDING
+      ========================= */
+
+      const trendingGrid =
+        document.getElementById("trendingGrid");
+
+
+      if (trendingGrid) {
+
+        const trending = videos
+          .filter(function (item) {
+
+            return String(item.id) !==
+              String(video.id);
+
+          })
+          .slice()
+          .sort(function (a, b) {
+
+            return Number(b.views || 0) -
+              Number(a.views || 0);
+
+          })
+          .slice(0, 10);
+
+
+        trending.forEach(function (item) {
+
+          trendingGrid.appendChild(
+            createVideoCard(item)
+          );
+
+        });
+
+      }
+
+    }
+
+  });
+
 
   /* =========================
      HELPERS
   ========================= */
 
+  function formatViews(number) {
+
+    number = Number(number || 0);
+
+    if (number >= 1000000) {
+
+      return (
+        (number / 1000000)
+          .toFixed(1)
+          .replace(".0", "") +
+        "M"
+      );
+
+    }
+
+
+    if (number >= 1000) {
+
+      return (
+        (number / 1000)
+          .toFixed(1)
+          .replace(".0", "") +
+        "K"
+      );
+
+    }
+
+
+    return number.toString();
+
+  }
+
+
   function escapeHTML(value) {
 
-    return String(value).replace(/[&<>"']/g, function (char) {
-
-      return {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      }[char];
-
-    });
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
   }
-
-
-  /* =========================
-     VIDEO CARD
-  ========================= */
-
-  function createVideoCard(video) {
-
-    const card = document.createElement("article");
-
-    card.className = "card";
-
-    card.tabIndex = 0;
-
-    card.innerHTML = `
-
-      <div class="thumb">
-
-        <img
-          src="${escapeHTML(video.thumbnail)}"
-          alt="${escapeHTML(video.title)}"
-          loading="lazy"
-        >
-
-        ${
-          video.preview
-          ?
-          `<video
-            muted
-            playsinline
-            preload="metadata"
-            src="${escapeHTML(video.preview)}"
-          ></video>`
-          :
-          ""
-        }
-
-        ${
-          video.preview
-          ?
-          `<span class="preview-label">Preview</span>`
-          :
-          ""
-        }
-
-      </div>
-
-      <div class="card-body">
-
-        <h3>
-          ${escapeHTML(video.title)}
-        </h3>
-
-        <div class="meta">
-          👁 ${Number(video.views).toLocaleString()} views
-        </div>
-
-      </div>
-
-    `;
-
-
-    /* Open video page */
-
-    function openVideo() {
-
-      window.location.href =
-        "video.html?id=" +
-        encodeURIComponent(video.id);
-
-    }
-
-
-    card.addEventListener("click", openVideo);
-
-
-    card.addEventListener("keydown", function (event) {
-
-      if (event.key === "Enter" || event.key === " ") {
-
-        event.preventDefault();
-
-        openVideo();
-
-      }
-
-    });
-
-
-    /* =========================
-       DESKTOP PREVIEW
-    ========================= */
-
-    let previewTimer;
-
-    function startPreview() {
-
-      if (!video.preview) {
-        return;
-      }
-
-      previewTimer = setTimeout(function () {
-
-        card.classList.add("is-previewing");
-
-        const preview =
-          card.querySelector("video");
-
-        if (preview) {
-
-          preview.currentTime = 0;
-
-          preview.play().catch(function () {});
-
-        }
-
-      }, 500);
-
-    }
-
-
-    function stopPreview() {
-
-      clearTimeout(previewTimer);
-
-      card.classList.remove("is-previewing");
-
-      const preview =
-        card.querySelector("video");
-
-      if (preview) {
-
-        preview.pause();
-
-        preview.currentTime = 0;
-
-      }
-
-    }
-
-
-    card.addEventListener(
-      "mouseenter",
-      startPreview
-    );
-
-    card.addEventListener(
-      "mouseleave",
-      stopPreview
-    );
-
-
-    /* =========================
-       MOBILE PRESS & HOLD
-    ========================= */
-
-    card.addEventListener(
-      "touchstart",
-      startPreview,
-      { passive: true }
-    );
-
-    card.addEventListener(
-      "touchend",
-      stopPreview,
-      { passive: true }
-    );
-
-    card.addEventListener(
-      "touchcancel",
-      stopPreview,
-      { passive: true }
-    );
-
-
-    return card;
-
-  }
-
-
-  /* =========================
-     RENDER VIDEOS
-  ========================= */
-
-  function renderVideos(videos, container) {
-
-    container.innerHTML = "";
-
-    videos.forEach(function (video) {
-
-      container.appendChild(
-        createVideoCard(video)
-      );
-
-    });
-
-  }
-
-
-  /* =========================
-     PAGINATION
-  ========================= */
-
-  function initializePagination() {
-
-    const grid =
-      document.getElementById("video-grid");
-
-    const pagination =
-      document.getElementById("pagination");
-
-    if (!grid || !pagination) {
-      return;
-    }
-
-
-    const videos =
-      window.TUBE_VIDEOS || [];
-
-    const videosPerPage = 30;
-
-    const totalPages =
-      Math.max(
-        1,
-        Math.ceil(
-          videos.length / videosPerPage
-        )
-      );
-
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-    let currentPage =
-      parseInt(
-        params.get("page") || "1",
-        10
-      );
-
-
-    currentPage =
-      Math.max(
-        1,
-        Math.min(
-          currentPage,
-          totalPages
-        )
-      );
-
-
-    function showPage(page) {
-
-      currentPage = page;
-
-      const start =
-        (page - 1) * videosPerPage;
-
-      const end =
-        start + videosPerPage;
-
-      const pageVideos =
-        videos.slice(start, end);
-
-
-      renderVideos(
-        pageVideos,
-        grid
-      );
-
-
-      const status =
-        document.getElementById(
-          "page-status"
-        );
-
-      if (status) {
-
-        status.textContent =
-          "Page " +
-          page +
-          " of " +
-          totalPages;
-
-      }
-
-
-      pagination.innerHTML = "";
-
-
-      /* Previous */
-
-      const previous =
-        document.createElement("button");
-
-      previous.textContent =
-        "← Previous";
-
-      previous.disabled =
-        currentPage === 1;
-
-      previous.addEventListener(
-        "click",
-        function () {
-
-          goToPage(
-            currentPage - 1
-          );
-
-        }
-      );
-
-      pagination.appendChild(
-        previous
-      );
-
-
-      /* Page numbers */
-
-      for (
-        let i = 1;
-        i <= totalPages;
-        i++
-      ) {
-
-        const button =
-          document.createElement("button");
-
-        button.textContent = i;
-
-        if (i === currentPage) {
-
-          button.classList.add(
-            "active"
-          );
-
-        }
-
-        button.addEventListener(
-          "click",
-          function () {
-
-            goToPage(i);
-
-          }
-        );
-
-        pagination.appendChild(
-          button
-        );
-
-      }
-
-
-      /* Next */
-
-      const next =
-        document.createElement("button");
-
-      next.textContent =
-        "Next →";
-
-      next.disabled =
-        currentPage === totalPages;
-
-      next.addEventListener(
-        "click",
-        function () {
-
-          goToPage(
-            currentPage + 1
-          );
-
-        }
-      );
-
-      pagination.appendChild(
-        next
-      );
-
-    }
-
-
-    function goToPage(page) {
-
-      if (
-        page < 1 ||
-        page > totalPages
-      ) {
-
-        return;
-
-      }
-
-      window.location.href =
-        "?page=" + page;
-
-    }
-
-
-    showPage(currentPage);
-
-  }
-
-
-  /* =========================
-     VIDEO PAGE
-  ========================= */
-
-  function initializeVideoPage() {
-
-    const videoContainer =
-      document.getElementById(
-        "video-page"
-      );
-
-    if (!videoContainer) {
-      return;
-    }
-
-
-    const videos =
-      window.TUBE_VIDEOS || [];
-
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-
-    const id =
-      parseInt(
-        params.get("id") || "1",
-        10
-      );
-
-
-    const video =
-      videos.find(function (item) {
-
-        return item.id === id;
-
-      }) || videos[0];
-
-
-    if (!video) {
-      return;
-    }
-
-
-    videoContainer.innerHTML = `
-
-      <div class="video-player">
-
-        ${
-          video.preview
-          ?
-          `
-          <video
-            controls
-            playsinline
-            poster="${escapeHTML(video.thumbnail)}"
-            src="${escapeHTML(video.preview)}"
-          ></video>
-          `
-          :
-          `
-          <div class="video-placeholder">
-            Authorized video player
-          </div>
-          `
-        }
-
-      </div>
-
-
-      <div class="video-info">
-
-        <h1>
-          ${escapeHTML(video.title)}
-        </h1>
-
-
-        <div class="muted">
-
-          👁 ${Number(video.views).toLocaleString()}
-          views
-
-          ·
-
-          ${escapeHTML(video.category)}
-
-        </div>
-
-
-        <div class="video-actions">
-
-          <button
-            class="vote-btn"
-            id="like-button"
-          >
-            👍 Like
-            <span>
-              ${video.likes}
-            </span>
-          </button>
-
-
-          <button
-            class="vote-btn"
-            id="dislike-button"
-          >
-            👎 Dislike
-            <span>
-              ${video.dislikes}
-            </span>
-          </button>
-
-        </div>
-
-
-        <div class="muted">
-
-          Tags:
-          ${video.tags
-            .map(escapeHTML)
-            .join(", ")}
-
-        </div>
-
-      </div>
-
-    `;
-
-
-    const like =
-      document.getElementById(
-        "like-button"
-      );
-
-    const dislike =
-      document.getElementById(
-        "dislike-button"
-      );
-
-
-    like.addEventListener(
-      "click",
-      function () {
-
-        like.classList.toggle(
-          "selected"
-        );
-
-        if (
-          like.classList.contains(
-            "selected"
-          )
-        ) {
-
-          dislike.classList.remove(
-            "selected"
-          );
-
-        }
-
-      }
-    );
-
-
-    dislike.addEventListener(
-      "click",
-      function () {
-
-        dislike.classList.toggle(
-          "selected"
-        );
-
-        if (
-          dislike.classList.contains(
-            "selected"
-          )
-        ) {
-
-          like.classList.remove(
-            "selected"
-          );
-
-        }
-
-      }
-    );
-
-
-    /* Trending */
-
-    const trending =
-      document.getElementById(
-        "trending-grid"
-      );
-
-
-    if (trending) {
-
-      const trendingVideos =
-        videos
-          .slice()
-          .sort(function (a, b) {
-
-            return b.views - a.views;
-
-          })
-          .slice(0, 8);
-
-
-      renderVideos(
-        trendingVideos,
-        trending
-      );
-
-    }
-
-  }
-
-
-  /* =========================
-     PAGE UI
-  ========================= */
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-
-      /* Theme */
-
-      document
-        .querySelectorAll(
-          "[data-theme]"
-        )
-        .forEach(function (button) {
-
-          button.addEventListener(
-            "click",
-            function () {
-
-              root.classList.toggle(
-                "dark"
-              );
-
-              localStorage.setItem(
-                "theme",
-                root.classList.contains(
-                  "dark"
-                )
-                ? "dark"
-                : "light"
-              );
-
-            }
-          );
-
-        });
-
-
-      /* Mobile menu */
-
-      document
-        .querySelectorAll(
-          "[data-menu]"
-        )
-        .forEach(function (button) {
-
-          button.addEventListener(
-            "click",
-            function () {
-
-              document.body.classList.toggle(
-                "menu-open"
-              );
-
-            }
-          );
-
-        });
-
-
-      document
-        .querySelectorAll(
-          "[data-overlay]"
-        )
-        .forEach(function (overlay) {
-
-          overlay.addEventListener(
-            "click",
-            function () {
-
-              document.body.classList.remove(
-                "menu-open"
-              );
-
-            }
-          );
-
-        });
-
-
-      /* Language */
-
-      const savedLanguage =
-        localStorage.getItem(
-          "lang"
-        ) || "en";
-
-
-      document
-        .querySelectorAll(
-          "[data-lang]"
-        )
-        .forEach(function (select) {
-
-          select.value =
-            savedLanguage;
-
-
-          select.addEventListener(
-            "change",
-            function () {
-
-              localStorage.setItem(
-                "lang",
-                select.value
-              );
-
-            }
-          );
-
-        });
-
-
-      /* Active navigation */
-
-      const page =
-        location.pathname
-          .split("/")
-          .pop() ||
-        "index.html";
-
-
-      document
-        .querySelectorAll(
-          ".side-link"
-        )
-        .forEach(function (link) {
-
-          if (
-            link.getAttribute(
-              "href"
-            ) === page
-          ) {
-
-            link.classList.add(
-              "active"
-            );
-
-          }
-
-        });
-
-
-      initializePagination();
-
-      initializeVideoPage();
-
-    }
-
-  );
 
 })();
