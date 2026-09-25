@@ -1,11 +1,18 @@
-document.addEventListener("DOMContentLoaded",()=>{
-  const form=document.getElementById("uploadForm"),msg=document.getElementById("msg"),c=window.supabaseClient;
-  if(!c){msg.textContent="Add your Supabase publishable key first.";return;}
-  form.onsubmit=async e=>{
-    e.preventDefault();msg.textContent="Saving...";
-    const {data:{user}}=await c.auth.getUser();
-    if(!user){location.href="login.html";return;}
-    const {error}=await c.from("videos").insert({user_id:user.id,title:title.value,description:description.value,video_url:videoUrl.value,thumbnail_url:thumbnailUrl.value||null,preview_url:previewUrl.value||null,category_id:Number(categoryId.value)||null,status:"published"});
-    msg.textContent=error?error.message:"Video metadata published successfully.";
-  };
+const escUpload=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let uploadType='video';
+const $u=s=>document.querySelector(s);
+const nowLocal=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
+window.addEventListener('DOMContentLoaded', async()=>{
+  const c=window.supabaseClient, form=$u('#uploadForm'), msg=$u('#msg');
+  if(!c){msg.textContent='Supabase is not configured.';return;}
+  const {data:{user}}=await c.auth.getUser(); if(!user){location.href='login.html?next=upload.html';return;}
+  $u('#publishDate').value=nowLocal();
+  await loadCategories();
+  document.querySelectorAll('.upload-tab').forEach(tab=>tab.onclick=()=>setType(tab.dataset.type));
+  setType('video');
+  form.onsubmit=e=>submitUpload(e,user);
 });
+function setType(type){uploadType=type;document.querySelectorAll('.upload-tab').forEach(x=>x.classList.toggle('active',x.dataset.type===type));const file=$u('#mediaFile'),thumb=$u('#thumbnailField');if(type==='video'){file.accept='video/*';file.required=true;file.value='';$u('#fileHint').textContent='MP4/WebM/MOV and other browser-supported video formats.';thumb.hidden=false;$u('#publishBtn').textContent='Publish video';}else{file.accept='image/*';file.required=true;file.value='';$u('#fileHint').textContent='JPG, PNG, WebP and other browser-supported image formats.';thumb.hidden=true;$u('#publishBtn').textContent='Publish photo';}}
+async function loadCategories(){const c=window.supabaseClient;const {data,error}=await c.from('categories').select('id,name').order('name');const select=$u('#categoryId');if(error||!data?.length){select.innerHTML='<option value="">Uncategorized</option>';return;}select.innerHTML='<option value="">Uncategorized</option>'+data.map(x=>`<option value="${escUpload(x.id)}">${escUpload(x.name)}</option>`).join('');}
+async function uploadFile(bucket,path,file){const c=window.supabaseClient;const {error}=await c.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'3600'});if(error)throw error;const {data}=c.storage.from(bucket).getPublicUrl(path);return data.publicUrl;}
+async function submitUpload(e,user){e.preventDefault();const c=window.supabaseClient,msg=$u('#msg'),btn=$u('#publishBtn'),media=$u('#mediaFile').files[0],thumb=$u('#thumbnailFile')?.files[0];if(!media)return;btn.disabled=true;msg.textContent='Uploading file...';$u('#progressWrap').hidden=false;$u('#progressBar').style.width='20%';try{const safe=media.name.replace(/[^a-zA-Z0-9._-]/g,'_'),base=`${user.id}/${Date.now()}-${safe}`,mediaUrl=await uploadFile('media',`${base}`,media);$u('#progressBar').style.width='70%';let thumbUrl=null;if(uploadType==='video'&&thumb){thumbUrl=await uploadFile('media',`${user.id}/thumbnails/${Date.now()}-${thumb.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`,thumb);}const created=new Date($u('#publishDate').value||Date.now()).toISOString();const categoryId=Number($u('#categoryId').value)||null;if(uploadType==='video'){const {error}=await c.from('videos').insert({user_id:user.id,title:$u('#title').value.trim(),description:$u('#description').value.trim(),video_url:mediaUrl,thumbnail_url:thumbUrl,preview_url:mediaUrl,category_id:categoryId,status:'published',created_at:created});if(error)throw error;}else{const {error}=await c.from('photos').insert({user_id:user.id,title:$u('#title').value.trim(),description:$u('#description').value.trim(),image_url:mediaUrl,category_id:categoryId,status:'published',created_at:created});if(error)throw error;}$u('#progressBar').style.width='100%';msg.textContent=`${uploadType==='video'?'Video':'Photo'} published successfully.`;e.target.reset();$u('#publishDate').value=nowLocal();setType(uploadType);}catch(err){msg.textContent=err.message||'Upload failed. Make sure the media bucket and database setup have been created.';}finally{btn.disabled=false;}}

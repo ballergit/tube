@@ -13,3 +13,12 @@ A responsive video website frontend with Supabase Auth + database integration.
 2. Edit `supabase-config.js` and paste your Supabase Project URL and Publishable key.
 3. In Supabase Auth, add your Netlify site URL to the allowed redirect URLs.
 
+
+## Latest corrections
+- Original left sidebar retained; no hamburger menu.
+- Home/video cards include an inline play button and muted hold/hover preview.
+- Video detail actions are Like, Dislike, Download, Share. Save was removed.
+- Share opens app choices (WhatsApp, Telegram, Facebook, X, Email) plus Copy link.
+- Upload page supports actual video/photo files through Supabase Storage.
+- 30 videos/photos per page with responsive two-column phone catalogs.
+- Category appears on each catalog card.

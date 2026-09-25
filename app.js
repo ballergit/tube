@@ -1,5 +1,6 @@
 const VEXA_LOCAL = window.VEXA_VIDEOS || [];
 const PAGE_SIZE = 30;
+const PHOTO_PAGE_SIZE = 30;
 let allVideos = [...VEXA_LOCAL];
 let currentPage = Number(new URLSearchParams(location.search).get('page')) || 1;
 let activeSearch = '';
@@ -11,35 +12,69 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 window.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  await loadSiteSettings();
   setupTheme();
-  setupMenu();
   setupHeaderAuth();
   setupSearch();
   setupLanguage();
 
+  setActiveSidebar();
   if ($('#videoPage')) return renderVideoPage();
-  if ($('#videoGrid')) return loadListing();
   if ($('#photoGrid')) return loadPhotoListing();
+  if ($('#videoGrid')) return loadListing();
+}
+
+async function loadSiteSettings() {
+  const defaults = {site_name:'Vexa',site_description:'Responsive video and photo platform',site_copyright:'© 2026 Vexa — Authorized and demo content only.',accent:'#7c3aed',accent2:'#38bdf8',dark_bg:'#08090b',dark_surface:'#111318',light_bg:'#f5f6f8',light_surface:'#ffffff'};
+  let settings = {...defaults};
+  if (window.supabaseClient) {
+    try {
+      const {data} = await window.supabaseClient.from('site_settings').select('key,value');
+      (data || []).forEach(row => { settings[row.key] = row.value; });
+    } catch (_) {}
+  }
+  document.documentElement.style.setProperty('--accent', settings.accent);
+  document.documentElement.style.setProperty('--accent2', settings.accent2);
+  document.documentElement.style.setProperty('--dark-bg', settings.dark_bg);
+  document.documentElement.style.setProperty('--dark-surface', settings.dark_surface);
+  document.documentElement.style.setProperty('--light-bg', settings.light_bg);
+  document.documentElement.style.setProperty('--light-surface', settings.light_surface);
+  document.querySelectorAll('.brand').forEach(el => { if (!el.closest('.admin-main')) el.textContent = settings.site_name; });
+  document.querySelectorAll('.copyright').forEach(el => el.textContent = settings.site_copyright);
+  if (settings.site_name) document.title = document.title.replace(/^Vexa/, settings.site_name);
 }
 
 function setupTheme() {
   const saved = localStorage.getItem('vexa-theme');
-  if (saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
-  const button = $('#themeBtn');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = saved ? saved === 'dark' : prefersDark;
+  document.documentElement.classList.toggle('dark', isDark);
+
+  const button = document.getElementById('themeBtn');
   if (!button) return;
   updateThemeButton(button);
-  button.onclick = () => {
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('vexa-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-    updateThemeButton(button);
-  };
-}
-function updateThemeButton(button) { button.textContent = document.documentElement.classList.contains('dark') ? 'Light' : 'Dark'; }
 
-function setupMenu() {
-  const button = $('#menuBtn'), overlay = $('#overlay');
-  if (button) button.onclick = () => document.body.classList.toggle('menu-open');
-  if (overlay) overlay.onclick = () => document.body.classList.remove('menu-open');
+  button.addEventListener('click', () => {
+    const nextDark = !document.documentElement.classList.contains('dark');
+    document.documentElement.classList.toggle('dark', nextDark);
+    localStorage.setItem('vexa-theme', nextDark ? 'dark' : 'light');
+    updateThemeButton(button);
+  });
+}
+
+function updateThemeButton(button) {
+  const dark = document.documentElement.classList.contains('dark');
+  button.textContent = dark ? '☀️' : '🌙';
+  button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  button.setAttribute('title', dark ? 'Light mode' : 'Dark mode');
+}
+
+function setActiveSidebar() {
+  const page = location.pathname.split('/').pop() || 'index.html';
+  $$('.side-link').forEach(link => {
+    const href = (link.getAttribute('href') || '').split('?')[0];
+    link.classList.toggle('active', href === page || (page === 'index.html' && href === 'index.html'));
+  });
 }
 
 function setupLanguage() {
@@ -65,7 +100,8 @@ function renderAuthNav(target, session) {
   }
   const email = session.user.email || 'Account';
   const label = (session.user.user_metadata?.display_name || session.user.user_metadata?.username || email.split('@')[0] || 'Account');
-  target.innerHTML = `<details class="account-menu"><summary class="header-account">${esc(label)}</summary><div class="account-popover"><small>${esc(email)}</small><a href="profile.html">Profile</a><button id="logoutBtn">Log out</button></div></details>`;
+  const adminLink = session.user.app_metadata?.role === 'admin' ? '<a href="admin.html">Admin Dashboard</a>' : '';
+  target.innerHTML = `<details class="account-menu"><summary class="header-account">${esc(label)}</summary><div class="account-popover"><small>${esc(email)}</small><a href="profile.html">Profile</a>${adminLink}<button id="logoutBtn">Log out</button></div></details>`;
   $('#logoutBtn', target).onclick = async () => { await window.supabaseClient.auth.signOut(); location.reload(); };
 }
 
@@ -81,7 +117,8 @@ function setupSearch() {
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const q = input.value.trim();
-      location.href = q ? `videos.html?q=${encodeURIComponent(q)}` : 'videos.html';
+      const target = $('#photoGrid') ? 'photos.html' : 'videos.html';
+      location.href = q ? `${target}?q=${encodeURIComponent(q)}` : target;
     }
   });
 }
@@ -89,8 +126,13 @@ function setupSearch() {
 async function loadListing() {
   allVideos = [...VEXA_LOCAL];
   if (window.supabaseClient) {
-    const { data, error } = await window.supabaseClient.from('latest_videos').select('*').limit(200);
-    if (!error && data?.length) allVideos = data.map(normalizeVideo);
+    const { data, error } = await window.supabaseClient.from('latest_videos').select('*').order('created_at', {ascending:false}).limit(500);
+    if (!error && data?.length) {
+      const remote = data.map(normalizeVideo);
+      const byId = new Map(remote.map(v => [String(v.id), v]));
+      for (const demo of VEXA_LOCAL) if (!byId.has(String(demo.id))) byId.set(String(demo.id), demo);
+      allVideos = [...byId.values()];
+    }
   }
   const q = new URLSearchParams(location.search).get('q') || '';
   activeSearch = q.toLowerCase();
@@ -112,7 +154,8 @@ function normalizeVideo(v) {
     likes: Number(v.likes || 0),
     dislikes: Number(v.dislikes || 0),
     description: v.description || '',
-    duration: v.duration || ''
+    duration: v.duration || '',
+    created_at: v.created_at || v.published_at || ''
   };
 }
 
@@ -134,6 +177,7 @@ function renderGrid(list = allVideos) {
   const pageItems = list.slice(start, start + PAGE_SIZE);
   grid.innerHTML = pageItems.map(createCard).join('') || '<div class="empty-state"><h3>No videos found</h3><p>Try another search or category.</p></div>';
   setupPreviews();
+  setupCardInteractions();
   renderPagination(total, list.length);
   const counter = $('#pageSummary');
   if (counter) counter.textContent = list.length ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, list.length)} of ${list.length} videos` : 'No videos found';
@@ -143,18 +187,17 @@ function createCard(v) {
   const x = normalizeVideo(v);
   const id = encodeURIComponent(x.id ?? x.title);
   return `<article class="card video-card" data-id="${esc(x.id)}">
-    <a class="video-link" href="video.html?id=${id}">
+    <div class="video-card-link" data-open-video="video.html?id=${id}">
       <div class="thumb preview-wrap">
         <img class="thumb-img" src="${esc(x.thumbnail)}" alt="${esc(x.title)}" loading="lazy">
-        ${x.preview ? `<video class="preview-video" muted playsinline preload="metadata" src="${esc(x.preview)}"></video>` : ''}
-        <span class="play-badge">Play</span>
-        ${x.duration ? `<span class="duration">${esc(x.duration)}</span>` : ''}
+        ${x.preview || x.video ? `<video class="preview-video" muted playsinline preload="metadata" src="${esc(x.preview || x.video)}"></video>` : ''}
+        <button class="card-play" type="button" aria-label="Play ${esc(x.title)}">▶</button>
+        <span class="duration">${esc(x.duration || '')}</span>
       </div>
-      <div class="card-body"><h3>${esc(x.title)}</h3><div class="muted">${formatViews(x.views)} views</div><div class="card-category">${esc(x.category)}</div></div>
-    </a>
+      <div class="card-body"><h3>${esc(x.title)}</h3><div class="muted card-meta">${formatViews(x.views)} views</div><div class="card-category">${esc(x.category)}</div></div>
+    </div>
   </article>`;
 }
-
 function setupPreviews() {
   $$('.video-card').forEach(card => {
     const video = $('.preview-video', card);
@@ -196,6 +239,65 @@ function setupPreviews() {
   });
 }
 
+function setupCardInteractions() {
+  $$('.video-card').forEach(card => {
+    const open = card.querySelector('[data-open-video]');
+    const play = card.querySelector('.card-play');
+    const video = card.querySelector('.preview-video');
+    if (!open) return;
+    open.addEventListener('click', e => {
+      if (e.target.closest('.card-play')) return;
+      location.href = open.dataset.openVideo;
+    });
+    if (play && video) {
+      play.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        if (video.paused) { video.controls = true; video.muted = false; video.play().catch(()=>{}); card.classList.add('is-playing'); play.textContent='❚❚'; }
+        else { video.pause(); video.controls = false; play.textContent='▶'; card.classList.remove('is-playing'); }
+      });
+      video.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
+      video.addEventListener('ended', () => { video.controls=false; play.textContent='▶'; card.classList.remove('is-playing'); });
+    }
+  });
+}
+
+async function loadPhotoListing() {
+  let photos = [...(window.VEXA_PHOTOS || [])];
+  if (window.supabaseClient) {
+    try {
+      const {data} = await window.supabaseClient.from('photos').select('*,categories(name)').eq('status','published').order('created_at',{ascending:false}).limit(500);
+      if (data?.length) {
+        const remote=data.map(p=>({id:p.id,title:p.title,description:p.description||'',image:p.image_url,category:p.categories?.name||'Photo',views:Number(p.views||0),created_at:p.created_at}));
+        const ids=new Set(remote.map(p=>String(p.id))); photos=[...remote,...photos.filter(p=>!ids.has(String(p.id)))];
+      }
+    } catch (_) {}
+  }
+  const q = new URLSearchParams(location.search).get('q') || '';
+  const category = new URLSearchParams(location.search).get('category') || '';
+  const filtered = photos.filter(p => {
+    const hay = `${p.title} ${p.category} ${p.description}`.toLowerCase();
+    return (!q || hay.includes(q.toLowerCase())) && (!category || String(p.category).toLowerCase().includes(category.toLowerCase()));
+  });
+  renderPhotoGrid(filtered);
+}
+
+function renderPhotoGrid(list) {
+  const grid = $('#photoGrid');
+  if (!grid) return;
+  const total = Math.max(1, Math.ceil(list.length / PHOTO_PAGE_SIZE));
+  currentPage = Math.min(Math.max(currentPage, 1), total);
+  const start = (currentPage - 1) * PHOTO_PAGE_SIZE;
+  const pageItems = list.slice(start, start + PHOTO_PAGE_SIZE);
+  grid.innerHTML = pageItems.map(createPhotoCard).join('') || '<div class="empty-state"><h3>No photos found</h3><p>Try another search or category.</p></div>';
+  renderPagination(total, list.length);
+  const counter = $('#pageSummary');
+  if (counter) counter.textContent = list.length ? `Showing ${start + 1}–${Math.min(start + PHOTO_PAGE_SIZE, list.length)} of ${list.length} photos` : 'No photos found';
+}
+
+function createPhotoCard(x) {
+  return `<article class="card photo-card"><a href="${esc(x.image)}" target="_blank" rel="noopener"><div class="thumb photo-thumb"><img class="thumb-img" src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy"></div><div class="card-body"><h3>${esc(x.title)}</h3><div class="muted card-meta">${formatViews(x.views)} views</div><div class="card-category">${esc(x.category)}</div></div></a></article>`;
+}
+
 function renderPagination(total, count) {
   const p = $('#pagination');
   if (!p) return;
@@ -220,7 +322,7 @@ window.vexaPage = n => {
   const params = new URLSearchParams(location.search);
   params.set('page', currentPage);
   history.replaceState(null, '', `${location.pathname}?${params}`);
-  renderGrid(getFilteredVideos());
+  if ($('#photoGrid')) loadPhotoListing(); else renderGrid(getFilteredVideos());
   window.scrollTo({top:0, behavior:'smooth'});
 };
 
@@ -247,10 +349,10 @@ async function renderVideoPage() {
       <h1>${esc(v.title)}</h1>
       <div class="video-meta">${formatViews(v.views)} views${v.duration ? ` · ${esc(v.duration)}` : ''}</div>
       <div class="actions">
-        <button class="btn" id="likeBtn">Like <span>${v.likes}</span></button>
-        <button class="btn" id="dislikeBtn">Dislike <span>${v.dislikes}</span></button>
-        <button class="btn" id="saveBtn">Save</button>
-        <button class="btn" id="shareBtn">Share</button>
+        <button class="btn action-btn" id="likeBtn" type="button">👍 Like <span>${v.likes}</span></button>
+        <button class="btn action-btn" id="dislikeBtn" type="button">👎 Dislike <span>${v.dislikes}</span></button>
+        <a class="btn action-btn" id="downloadBtn" href="${esc(v.download || v.video)}" download target="_blank" rel="noopener">⬇ Download</a>
+        <button class="btn action-btn" id="shareBtn" type="button">↗ Share</button>
       </div>
       <div class="tags">${v.tags.map(t=>`<span>#${esc(t)}</span>`).join('')}</div>
       <div class="description"><h2>Description</h2><p>${esc(v.description || 'No description provided.')}</p></div>
@@ -259,7 +361,7 @@ async function renderVideoPage() {
   <section class="comments-section"><div class="section-title"><h2>Comments</h2></div><form class="comment-form" id="commentForm"><textarea id="commentInput" rows="3" placeholder="Write a comment..." required></textarea><button class="btn primary" type="submit">Post comment</button></form><div id="commentsList"></div></section>
   <section class="related-section"><div class="section-title"><h2>Related videos</h2><a class="muted" href="videos.html">View all</a></div><div class="grid related-grid" id="relatedGrid"></div></section>`;
   setupReactions(v);
-  setupSave(v);
+  setupDownload(v);
   setupShare(v);
   setupComments(v);
   loadRelated(v);
@@ -291,15 +393,34 @@ function setupReactions(v) {
   like.onclick=()=>send('like'); dislike.onclick=()=>send('dislike');
 }
 
-function setupSave(v) {
-  const b=$('#saveBtn'), key='vexa-saved-videos';
-  const get=()=>JSON.parse(localStorage.getItem(key)||'[]');
-  const refresh=()=>b.textContent=get().includes(String(v.id))?'Saved':'Save';
-  refresh();
-  b.onclick=()=>{const ids=get();const id=String(v.id);const i=ids.indexOf(id);i>=0?ids.splice(i,1):ids.push(id);localStorage.setItem(key,JSON.stringify(ids));refresh();};
+function setupDownload(v) {
+  const b=$('#downloadBtn');
+  if (!b) return;
+  if (!v.download && !v.video) { b.removeAttribute('href'); b.classList.add('disabled'); b.setAttribute('aria-disabled','true'); }
 }
 function setupShare(v) {
-  $('#shareBtn').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);alert('Video link copied.');}catch(_){prompt('Copy this link:',location.href);}};
+  const b=$('#shareBtn'); if(!b)return;
+  b.onclick=()=>openShareModal(v);
+}
+function openShareModal(v) {
+  let modal=document.getElementById('shareModal');
+  if(!modal){
+    modal=document.createElement('div'); modal.id='shareModal'; modal.className='share-modal';
+    modal.innerHTML=`<div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="shareTitle"><button class="share-close" type="button" aria-label="Close">×</button><h2 id="shareTitle">Share video</h2><p class="muted share-url"></p><div class="share-options"></div></div>`;
+    document.body.appendChild(modal); modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();}); modal.querySelector('.share-close').onclick=()=>modal.remove();
+  }
+  const url=location.href, title=v.title;
+  modal.querySelector('.share-url').textContent=url;
+  const encoded=encodeURIComponent(url), text=encodeURIComponent(title+' — '+url);
+  modal.querySelector('.share-options').innerHTML=`
+    <a class="share-option" href="https://wa.me/?text=${text}" target="_blank" rel="noopener">WhatsApp</a>
+    <a class="share-option" href="https://t.me/share/url?url=${encoded}&text=${encodeURIComponent(title)}" target="_blank" rel="noopener">Telegram</a>
+    <a class="share-option" href="https://www.facebook.com/sharer/sharer.php?u=${encoded}" target="_blank" rel="noopener">Facebook</a>
+    <a class="share-option" href="https://twitter.com/intent/tweet?text=${text}" target="_blank" rel="noopener">X</a>
+    <a class="share-option" href="mailto:?subject=${encodeURIComponent(title)}&body=${text}">Email</a>
+    <button class="share-option copy-share" type="button">Copy link</button>`;
+  modal.querySelector('.copy-share').onclick=async()=>{try{await navigator.clipboard.writeText(url);modal.querySelector('.copy-share').textContent='Copied ✓';setTimeout(()=>{if(document.body.contains(modal))modal.remove();},700);}catch(_){prompt('Copy this link:',url);}};
+  modal.hidden=false;
 }
 
 async function setupComments(v) {
@@ -330,51 +451,8 @@ function renderLocalComments(id,list){const comments=JSON.parse(localStorage.get
 function loadRelated(v) {
   const grid=$('#relatedGrid');if(!grid)return;
   const related=allVideos.filter(x=>String(x.id)!==String(v.id)).sort((a,b)=>Number(b.views||0)-Number(a.views||0)).slice(0,8);
-  grid.innerHTML=related.map(createCard).join(''); setupPreviews();
+  grid.innerHTML=related.map(createCard).join(''); setupPreviews(); setupCardInteractions();
 }
 
 function formatViews(n){return Number(n||0).toLocaleString();}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
-
-const PHOTO_PAGE_SIZE = 30;
-const PHOTO_CATEGORIES = ['Travel','Nature','Lifestyle','Technology','Sports','Automotive','Food','Education'];
-const PHOTO_TITLES = [
-  'Beautiful Coast','Mountain Morning','City Lights','Forest Trail','Ocean Horizon','Golden Sunset','Modern Workspace','Street Scene','Tropical Escape','Quiet Lake',
-  'Desert Road','Green Valley','Rainy Street','Beach Walk','Night Skyline','Wild River','Open Road','Garden Morning','Island View','Winter Landscape',
-  'Coffee Moment','Creative Desk','Fitness Session','Game Setup','Fresh Meal','Study Corner','Dream Car','Basketball Court','Travel Backpack','Sunrise View',
-  'Seaside Town','Forest Path','Mountain Road','Urban Architecture','Calm Waters','Evening Drive','Nature Close Up','Weekend Market','Outdoor Adventure','Home Studio',
-  'Healthy Plate','Coding Desk','Football Field','Coastal Road','Sunset Beach','Wildlife Scene','City Morning','Adventure Trail','Ocean Waves','Cloudy Peaks',
-  'Creator Setup','Road Trip','Local Market','Peaceful Garden','Sports Training','Modern Gadgets','Lake Reflection','Evening City','Hiking View','Sunlit Forest'
-];
-function photoItems(){
-  return PHOTO_TITLES.map((title,i)=>({id:i+1,title,category:PHOTO_CATEGORIES[i%PHOTO_CATEGORIES.length],views:120+i*19,src:`https://picsum.photos/seed/vexa-photo-${i+1}/900/600`}));
-}
-function loadPhotoListing(){
-  const items=photoItems();
-  const params=new URLSearchParams(location.search);
-  let page=Number(params.get('page'))||1;
-  const q=(params.get('q')||'').trim().toLowerCase();
-  const filtered=q?items.filter(x=>`${x.title} ${x.category}`.toLowerCase().includes(q)):items;
-  const total=Math.max(1,Math.ceil(filtered.length/PHOTO_PAGE_SIZE));
-  page=Math.min(Math.max(page,1),total);
-  const start=(page-1)*PHOTO_PAGE_SIZE;
-  const grid=$('#photoGrid');
-  grid.innerHTML=filtered.slice(start,start+PHOTO_PAGE_SIZE).map(createPhotoCard).join('')||'<div class="empty-state"><h3>No photos found</h3><p>Try another search.</p></div>';
-  const summary=$('#photoSummary');
-  if(summary) summary.textContent=filtered.length?`Showing ${start+1}–${Math.min(start+PHOTO_PAGE_SIZE,filtered.length)} of ${filtered.length} photos`:'No photos found';
-  renderPhotoPagination(total,page);
-}
-function createPhotoCard(x){
-  return `<article class="card photo-card"><a href="photos.html?page=${Math.ceil(x.id/PHOTO_PAGE_SIZE)}"><div class="photo-thumb"><img src="${esc(x.src)}" alt="${esc(x.title)}" loading="lazy"></div><div class="card-body"><h3>${esc(x.title)}</h3><div class="muted">${formatViews(x.views)} views</div><div class="card-category">${esc(x.category)}</div></div></a></article>`;
-}
-function renderPhotoPagination(total,page){
-  const p=$('#photoPagination'); if(!p)return;
-  if(total<=1){p.innerHTML='';return;}
-  const nums=paginationNumbers(total,page);
-  let html=`<button class="page-btn" ${page===1?'disabled':''} onclick="photoPage(${page-1})">Previous</button>`;
-  nums.forEach(n=>html+=n==='…'?'<span class="page-dots">…</span>':`<button class="page-btn ${n===page?'active':''}" onclick="photoPage(${n})">${n}</button>`);
-  html+=`<button class="page-btn" ${page===total?'disabled':''} onclick="photoPage(${page+1})">Next</button>`;
-  p.innerHTML=html;
-}
-window.photoPage=n=>{const params=new URLSearchParams(location.search);params.set('page',n);history.replaceState(null,'',`${location.pathname}?${params}`);loadPhotoListing();window.scrollTo({top:0,behavior:'smooth'});};
