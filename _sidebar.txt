@@ -1,0 +1,9 @@
+<aside class="sidebar">
+<a class="side-link active" data-nav="home" href="index.html">Home</a>
+<a class="side-link" data-nav="videos" href="videos.html">Videos</a>
+<a class="side-link" data-nav="categories" href="categories.html">Categories</a>
+<a class="side-link" data-nav="community" href="community.html">Community</a>
+<a class="side-link" data-nav="photos" href="photos.html">Photos</a>
+<a class="side-link" data-nav="tags" href="tags.html">Tags</a>
+<a class="side-link upload-link" data-nav="upload" href="upload.html">Upload</a>
+</aside><div class="overlay" id="overlay"></div>
