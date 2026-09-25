@@ -1,18 +1,27 @@
-const escUpload=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let uploadType='video';
-const $u=s=>document.querySelector(s);
-const nowLocal=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
-window.addEventListener('DOMContentLoaded', async()=>{
-  const c=window.supabaseClient, form=$u('#uploadForm'), msg=$u('#msg');
-  if(!c){msg.textContent='Supabase is not configured.';return;}
-  const {data:{user}}=await c.auth.getUser(); if(!user){location.href='login.html?next=upload.html';return;}
-  $u('#publishDate').value=nowLocal();
-  await loadCategories();
-  document.querySelectorAll('.upload-tab').forEach(tab=>tab.onclick=()=>setType(tab.dataset.type));
-  setType('video');
-  form.onsubmit=e=>submitUpload(e,user);
+const client=window.supabaseClient;
+document.addEventListener("DOMContentLoaded",()=>{
+  const form=document.getElementById("uploadForm"),msg=document.getElementById("msg"),type=document.getElementById("contentType");
+  document.getElementById("themeBtn")?.addEventListener("click",()=>{document.documentElement.classList.toggle("light");localStorage.setItem("vexa-theme",document.documentElement.classList.contains("light")?"light":"dark")});
+  type.onchange=()=>{document.getElementById("mediaFile").accept=type.value==='video'?'video/*':'image/*';document.getElementById("thumbFile").disabled=type.value==='photo';};
+  form.onsubmit=async e=>{
+    e.preventDefault();msg.textContent="Uploading...";
+    if(!client){msg.textContent="Supabase is not connected.";return;}
+    const {data:{user}}=await client.auth.getUser(); if(!user){location.href='login.html';return;}
+    const file=document.getElementById("mediaFile").files[0]; if(!file)return;
+    const slug=`${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const bucket=type.value==='video'?'videos':'photos';
+    let up=await client.storage.from(bucket).upload(slug,file,{upsert:false,contentType:file.type}); if(up.error){msg.textContent=up.error.message;return;}
+    const mediaUrl=client.storage.from(bucket).getPublicUrl(slug).data.publicUrl;
+    let thumbUrl=null;
+    const thumb=document.getElementById("thumbFile").files[0];
+    if(thumb){const tslug=`${user.id}/${Date.now()}-thumb-${thumb.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const tu=await client.storage.from('thumbnails').upload(tslug,thumb,{upsert:false,contentType:thumb.type});if(tu.error){msg.textContent=tu.error.message;return;}thumbUrl=client.storage.from('thumbnails').getPublicUrl(tslug).data.publicUrl;}
+    const profile=await client.from('profiles').select('display_name,username').eq('id',user.id).maybeSingle();
+    const uploaderName=profile.data?.display_name||profile.data?.username||user.email?.split('@')[0]||'Creator';
+    const row={title:document.getElementById('title').value.trim(),description:document.getElementById('description').value.trim(),category:document.getElementById('category').value.trim()||'General',tags:document.getElementById('tags').value.split(',').map(x=>x.trim()).filter(Boolean),uploader_id:user.id,uploader_name:uploaderName,status:'pending',submitted_at:new Date().toISOString()};
+    let result;
+    if(type.value==='video') result=await client.from('videos').insert({...row,video_url:mediaUrl,thumbnail_url:thumbUrl}).select().single();
+    else result=await client.from('photos').insert({...row,image_url:mediaUrl,thumbnail_url:thumbUrl}).select().single();
+    if(result.error){msg.textContent=result.error.message;return;}
+    form.reset();msg.textContent="Submitted. An admin must approve it before it appears publicly.";
+  };
 });
-function setType(type){uploadType=type;document.querySelectorAll('.upload-tab').forEach(x=>x.classList.toggle('active',x.dataset.type===type));const file=$u('#mediaFile'),thumb=$u('#thumbnailField');if(type==='video'){file.accept='video/*';file.required=true;file.value='';$u('#fileHint').textContent='MP4/WebM/MOV and other browser-supported video formats.';thumb.hidden=false;$u('#publishBtn').textContent='Publish video';}else{file.accept='image/*';file.required=true;file.value='';$u('#fileHint').textContent='JPG, PNG, WebP and other browser-supported image formats.';thumb.hidden=true;$u('#publishBtn').textContent='Publish photo';}}
-async function loadCategories(){const c=window.supabaseClient;const {data,error}=await c.from('categories').select('id,name').order('name');const select=$u('#categoryId');if(error||!data?.length){select.innerHTML='<option value="">Uncategorized</option>';return;}select.innerHTML='<option value="">Uncategorized</option>'+data.map(x=>`<option value="${escUpload(x.id)}">${escUpload(x.name)}</option>`).join('');}
-async function uploadFile(bucket,path,file){const c=window.supabaseClient;const {error}=await c.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'3600'});if(error)throw error;const {data}=c.storage.from(bucket).getPublicUrl(path);return data.publicUrl;}
-async function submitUpload(e,user){e.preventDefault();const c=window.supabaseClient,msg=$u('#msg'),btn=$u('#publishBtn'),media=$u('#mediaFile').files[0],thumb=$u('#thumbnailFile')?.files[0];if(!media)return;btn.disabled=true;msg.textContent='Uploading file...';$u('#progressWrap').hidden=false;$u('#progressBar').style.width='20%';try{const safe=media.name.replace(/[^a-zA-Z0-9._-]/g,'_'),base=`${user.id}/${Date.now()}-${safe}`,mediaUrl=await uploadFile('media',`${base}`,media);$u('#progressBar').style.width='70%';let thumbUrl=null;if(uploadType==='video'&&thumb){thumbUrl=await uploadFile('media',`${user.id}/thumbnails/${Date.now()}-${thumb.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`,thumb);}const created=new Date($u('#publishDate').value||Date.now()).toISOString();const categoryId=Number($u('#categoryId').value)||null;if(uploadType==='video'){const {error}=await c.from('videos').insert({user_id:user.id,title:$u('#title').value.trim(),description:$u('#description').value.trim(),video_url:mediaUrl,thumbnail_url:thumbUrl,preview_url:mediaUrl,category_id:categoryId,status:'published',created_at:created});if(error)throw error;}else{const {error}=await c.from('photos').insert({user_id:user.id,title:$u('#title').value.trim(),description:$u('#description').value.trim(),image_url:mediaUrl,category_id:categoryId,status:'published',created_at:created});if(error)throw error;}$u('#progressBar').style.width='100%';msg.textContent=`${uploadType==='video'?'Video':'Photo'} published successfully.`;e.target.reset();$u('#publishDate').value=nowLocal();setType(uploadType);}catch(err){msg.textContent=err.message||'Upload failed. Make sure the media bucket and database setup have been created.';}finally{btn.disabled=false;}}

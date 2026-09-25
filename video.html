@@ -1,21 +1,15 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vexa — Video</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script></head><body>
-<header class="site-header"><div class="header-inner">
-<a class="brand" href="index.html">Vexa</a>
-<div class="search"><input id="searchInput" aria-label="Search videos" placeholder="Search videos..."></div>
-<div class="header-actions"><select class="language" id="languageSelect" aria-label="Language"><option>EN</option><option>FR</option><option>ES</option><option>DE</option></select><button class="icon-btn" id="themeBtn" type="button">Dark</button><div id="authNav"><a class="header-account" href="login.html">Log in</a></div></div>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vexa — Video</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script></head>
+<body><header class="site-header"><div class="header-inner">
+<button class="menu-btn" id="menuBtn">☰</button><a class="brand" href="index.html">Vexa</a>
+<div class="search"><input id="searchInput" placeholder="Search videos..."></div>
+<div class="header-actions"><select class="language" id="languageSelect"><option>EN</option><option>FR</option><option>ES</option></select><button class="icon-btn" id="themeBtn">🌙</button><a class="icon-btn" href="login.html">👤</a></div>
 </div></header>
 <div class="layout"><aside class="sidebar">
-<a class="side-link active" data-nav="home" href="index.html">Home</a>
-<a class="side-link" data-nav="videos" href="videos.html">Videos</a>
-<a class="side-link" data-nav="categories" href="categories.html">Categories</a>
-<a class="side-link" data-nav="community" href="community.html">Community</a>
-<a class="side-link" data-nav="photos" href="photos.html">Photos</a>
-<a class="side-link" data-nav="tags" href="tags.html">Tags</a>
-<a class="side-link upload-link" data-nav="upload" href="upload.html">Upload</a>
-</aside><main class="main"><div id="videoPage"><p class="muted">Loading video...</p></div></main></div><footer class="footer"><div class="footer-grid">
-<div><h3>Vexa</h3><a href="about.html">About</a><a href="contact.html">Contact</a><a href="community.html">Community</a></div>
-<div><h3>Explore</h3><a href="videos.html">Videos</a><a href="categories.html">Categories</a><a href="tags.html">Tags</a></div>
-<div><h3>Help & Legal</h3><a href="faq.html">FAQ</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="dmca.html">Copyright / DMCA</a></div>
-<div><h3>Work With Us</h3><a href="upload.html">Upload</a><a href="advertise.html">Advertise</a><a href="partner.html">Partner</a></div>
-</div><div class="copyright">© 2026 Vexa — Authorized and demo content only.</div></footer>
+<a class="side-link" href="index.html">🏠 <span>Home</span></a><a class="side-link active" href="videos.html">🎬 <span>Videos</span></a>
+<a class="side-link" href="categories.html">📂 <span>Categories</span></a><a class="side-link" href="tags.html">🏷️ <span>Tags</span></a><a class="side-link" href="community.html">👥 <span>Community</span></a><a class="side-link" href="photos.html">🖼️ <span>Photos</span></a><a class="side-link upload-link" href="upload.html">⬆️ Upload</a>
+</aside><div class="overlay" id="overlay"></div>
+<main class="main"><div id="videoPage"><p class="muted">Loading video...</p></div></main></div>
 <script src="videos-data.js"></script><script src="app.js"></script></body></html>
