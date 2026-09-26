@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   const {data}=await client.auth.getUser(); user=data.user;
   if(!user){location.href='login.html';return;}
   const creatorCheck=await client.rpc('is_vexa_creator');
-  if(creatorCheck.error||creatorCheck.data!==true){location.replace('dashboard.html');return;}
+  if(creatorCheck.error||creatorCheck.data!==true){location.replace('creator-apply.html');return;}
   await load();
 });
 function setupTheme(){const saved=localStorage.getItem('vexa-theme');document.documentElement.classList.toggle('light',saved==='light');const b=document.getElementById('themeBtn');if(b)b.onclick=()=>{const light=!document.documentElement.classList.contains('light');document.documentElement.classList.toggle('light',light);localStorage.setItem('vexa-theme',light?'light':'dark');};}

@@ -1,6 +1,6 @@
 const client=window.supabaseClient;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let currentUser=null,allVideos=[],allPhotos=[],allComments=[],allUsers=[],allCategories=[],allTags=[];
+let currentUser=null,allVideos=[],allPhotos=[],allComments=[],allUsers=[],allCategories=[],allTags=[],allCreatorApplications=[];
 let homepageSections=[
   {key:'watched',label:'Videos Being Watched',enabled:true},
   {key:'latest',label:'Latest Videos',enabled:false},
@@ -10,30 +10,20 @@ let homepageSections=[
 
 document.addEventListener('DOMContentLoaded',async()=>{
   setupTheme();
-  const gate=document.getElementById('gate');
-  if(!client)return gateMsg('Supabase is not connected.');
+  if(!client){gateMsg('Supabase is not connected.');return;}
   try{
     const {data:{session},error:sessionError}=await client.auth.getSession();
     if(sessionError)throw sessionError;
-    if(session?.user){
-      const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
-      if(!error&&isAdmin===true){return openAdminPortal(session.user);}
-    }
-    setupAdminGateLogin();
-  }catch(e){console.error(e);setupAdminGateLogin();}
-});
-function setupAdminGateLogin(){
-  const form=document.getElementById('adminGateForm'),msg=document.getElementById('gateMsg');if(!form)return;
-  form.onsubmit=async e=>{
-    e.preventDefault();msg.textContent='Signing in…';
-    const email=document.getElementById('gateEmail').value.trim(),password=document.getElementById('gatePassword').value;
-    const {error}=await client.auth.signInWithPassword({email,password});
-    if(error){msg.textContent=error.message;return;}
+    if(!session?.user){location.replace('admin-login.html?next=admin.html');return;}
     const {data:isAdmin,error:adminError}=await client.rpc('is_vexa_admin');
-    if(adminError||isAdmin!==true){await client.auth.signOut();msg.textContent=adminError?`Admin access could not be verified: ${adminError.message}`:'This account is not an administrator.';return;}
-    msg.textContent='Admin verified. Opening portal…';await openAdminPortal((await client.auth.getUser()).data.user);
-  };
-}
+    if(adminError||isAdmin!==true){await client.auth.signOut();location.replace('admin-login.html?next=admin.html&switch=1');return;}
+    await openAdminPortal(session.user);
+  }catch(e){
+    console.error(e);
+    location.replace('admin-login.html?next=admin.html');
+  }
+});
+function setupAdminGateLogin(){}
 async function openAdminPortal(user){
   currentUser=user;
   const gate=document.getElementById('gate');gate.hidden=true;document.getElementById('adminApp').hidden=false;
@@ -53,7 +43,7 @@ function setupActions(){
   document.getElementById('adminUploadType').onchange=()=>{const video=document.getElementById('adminUploadType').value==='video';document.getElementById('adminMediaFile').accept=video?'video/*':'image/*';document.getElementById('adminThumbFile').disabled=!video;};
   document.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>setQuickDate('adminUploadDate',b.dataset.date));setupColorSwatches();setQuickDate('adminUploadDate','now');
 }
-async function loadEverything(){await Promise.all([loadDashboard(),loadVideos(),loadPhotos(),loadCategories(),loadTags(),loadUsers(),loadComments(),loadSiteSettings(),loadNavigation(),loadHomepageLayout()]);loadPendingContent();loadFeaturedTrending();}
+async function loadEverything(){await Promise.all([loadDashboard(),loadVideos(),loadPhotos(),loadCategories(),loadTags(),loadUsers(),loadCreatorApplications(),loadComments(),loadSiteSettings(),loadNavigation(),loadHomepageLayout()]);loadPendingContent();loadFeaturedTrending();}
 async function loadDashboard(){const {data,error}=await client.rpc('vexa_admin_stats');if(error){console.error(error);return;}const html=Object.entries(data||{}).map(([k,v])=>`<div class="stat-card"><div class="num">${esc(v)}</div><div class="lbl">${esc(k.replace(/_/g,' '))}</div></div>`).join('');document.getElementById('statGrid').innerHTML=html||'<p class="muted">No stats.</p>';}
 
 async function loadVideos(){const {data,error}=await client.from('videos').select('*').order('created_at',{ascending:false});if(error){console.error(error);return;}allVideos=data||[];filterVideos();}
@@ -92,6 +82,24 @@ async function loadUsers(){const {data,error}=await client.from('profiles').sele
 function filterUsers(){const q=document.getElementById('userSearch').value.toLowerCase();const rows=allUsers.filter(u=>(`${u.display_name||''} ${u.username||''}`).toLowerCase().includes(q));document.getElementById('userTableWrap').innerHTML=rows.length?`<table class="admin-table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Creator</th><th>Joined</th><th>Actions</th></tr></thead><tbody>${rows.map(u=>`<tr><td>${esc(u.display_name||'')}</td><td>${esc(u.username||'')}</td><td><span class="badge ${u.role==='admin'?'admin':''}">${esc(u.role)}</span></td><td>${u.is_creator?'Yes':'No'}</td><td>${formatDate(u.created_at)}</td><td><div class="row-actions"><button class="btn" onclick="changeRole('${esc(u.id)}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Demote':'Promote'}</button><button class="btn" onclick="toggleCreator('${esc(u.id)}',${u.is_creator?'false':'true'})">${u.is_creator?'Remove Creator':'Make Creator'}</button></div></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No users found.</p>';}
 window.changeRole=async(id,newRole)=>{if(!confirm(`Change role to ${newRole}?`))return;const {error}=await client.from('profiles').update({role:newRole}).eq('id',id);if(error)alert(error.message);else loadUsers();};
 window.toggleCreator=async(id,val)=>{if(!confirm(val?'Grant creator access to this user?':'Remove creator access from this user?'))return;const {error}=await client.rpc('vexa_set_creator',{p_user_id:id,p_is_creator:val});if(error)alert(error.message);else loadUsers();};
+
+async function loadCreatorApplications(){
+  const wrap=document.getElementById('creatorApplicationsWrap');if(!wrap)return;
+  const {data,error}=await client.from('creator_applications').select('*').order('created_at',{ascending:false});
+  if(error){wrap.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return;}
+  allCreatorApplications=data||[];
+  const ids=[...new Set(allCreatorApplications.map(x=>x.user_id).filter(Boolean))];
+  let profiles={};
+  if(ids.length){const pr=await client.from('profiles').select('id,username,display_name').in('id',ids);profiles=Object.fromEntries((pr.data||[]).map(x=>[x.id,x]));}
+  wrap.innerHTML=allCreatorApplications.length?`<table class="admin-table"><thead><tr><th>User</th><th>Country</th><th>Reason</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>${allCreatorApplications.map(a=>{const p=profiles[a.user_id]||{};return `<tr><td>${esc(p.display_name||p.username||a.user_id)}</td><td>${esc(a.country||'')}</td><td style="max-width:320px;white-space:pre-wrap">${esc(a.reason||'')}</td><td><span class="badge ${esc(a.status)}">${esc(a.status)}</span></td><td>${formatDate(a.created_at)}</td><td><div class="row-actions">${a.status!=='approved'?`<button class="btn primary" onclick="reviewCreatorApplication(${a.id},'approved')">Approve</button>`:''}${a.status!=='rejected'?`<button class="btn danger" onclick="reviewCreatorApplication(${a.id},'rejected')">Reject</button>`:''}<button class="btn" onclick="reviewCreatorApplication(${a.id},'pending')">Pending</button></div></td></tr>`;}).join('')}</tbody></table>`:'<p class="muted">No creator applications yet.</p>';
+}
+window.reviewCreatorApplication=async(id,status)=>{
+  const {data,error}=await client.rpc('vexa_review_creator_application',{p_application_id:Number(id),p_status:status});
+  if(error){alert(error.message);return;}
+  alert(data||'Updated.');
+  await loadCreatorApplications();
+  await loadUsers();
+};
 
 async function loadComments(){const {data,error}=await client.from('video_comments').select('*').order('created_at',{ascending:false});if(error){console.error(error);return;}allComments=data||[];filterComments();}
 function filterComments(){const status=document.getElementById('commentStatusFilter').value;const rows=status?allComments.filter(c=>c.status===status):allComments;document.getElementById('commentTableWrap').innerHTML=rows.length?`<table class="admin-table"><thead><tr><th>Body</th><th>By</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>${rows.map(c=>`<tr><td style="max-width:300px;white-space:pre-wrap">${esc(c.body)}</td><td>${esc(c.guest_name||c.user_id||'')}</td><td><span class="badge ${esc(c.status)}">${esc(c.status)}</span></td><td>${formatDate(c.created_at)}</td><td><div class="row-actions"><button class="btn" onclick="moderateComment(${c.id},'approved')">Approve</button><button class="btn danger" onclick="moderateComment(${c.id},'rejected')">Reject</button><button class="btn danger" onclick="deleteComment(${c.id})">Delete</button></div></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No comments.</p>';}

@@ -37,109 +37,153 @@ async function setupAuthUI(){
 
 function updateAuthUI(user){
   const path=location.pathname.split('/').pop()||'index.html';
-  if(path==='login.html'||path==='signup.html'||path==='admin-login.html'||path==='admin.html')return;
+  if(path==='admin-login.html'||path==='admin.html')return;
   const account=document.getElementById('accountBtn');
   const menu=document.getElementById('accountMenu');
   const container=document.getElementById('profileDropdown');
   const nameEl=document.getElementById('summaryName');
   const emailEl=document.getElementById('summaryEmail');
-  const triggerName=document.getElementById('profileUserName');
   const avatarEl=document.querySelector('#profileDropdown .avatar');
   const profileLink=document.getElementById('accountProfile');
   const creatorDashboardLink=document.getElementById('creatorDashboardLink');
-  const myContentLink=document.getElementById('myContentLink');
+  const applyCreatorLink=document.getElementById('applyCreatorLink');
   const toggle=document.getElementById('themeToggle');
 
   if(account){
-    if(user){account.hidden=true;account.textContent='';account.href='login.html';}
-    else{account.hidden=false;account.textContent='Login';account.title='Log in';account.href='login.html';}
+    account.hidden=!!user;
+    account.href='login.html';
   }
-  if(container){container.hidden=!user;if(!user)container.classList.remove('active');}
+  if(container){
+    container.hidden=!user;
+    if(!user)container.classList.remove('active');
+  }
   if(menu)menu.hidden=!user;
 
-  const displayName=user?(user.user_metadata?.username||user.user_metadata?.display_name||user.email?.split('@')[0]||'Account'):'Guest';
-  if(triggerName)triggerName.textContent=displayName;
+  const displayName=user?(user.user_metadata?.username||user.user_metadata?.display_name||user.email?.split('@')[0]||'Account'):'Account';
   if(nameEl)nameEl.textContent=displayName;
   if(emailEl)emailEl.textContent=user?.email||'';
   if(avatarEl){
     avatarEl.alt=user?`${displayName} profile`:'User Profile';
-    avatarEl.src=user?.user_metadata?.avatar_url||user?.user_metadata?.picture||`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=2a2a2a&color=fff&size=72`;
+    const url=user?.user_metadata?.avatar_url||user?.user_metadata?.picture||'';
+    if(url){avatarEl.src=url;avatarEl.hidden=false;}
+    else{avatarEl.removeAttribute('src');avatarEl.hidden=true;}
   }
   if(profileLink&&user)profileLink.href='creator.html?id='+encodeURIComponent(user.id);
-  if(toggle)toggle.checked=document.documentElement.classList.contains('light')===false;
+  if(toggle)toggle.checked=localStorage.getItem('vexa-theme')!=='light';
 
   if(user&&window.supabaseClient){
     window.supabaseClient.rpc('is_vexa_creator').then(({data,error})=>{
       const isCreator=!error&&data===true;
       if(creatorDashboardLink)creatorDashboardLink.hidden=!isCreator;
-      if(myContentLink){myContentLink.hidden=!isCreator;if(isCreator)myContentLink.href='creator-dashboard.html#content';}
+      if(applyCreatorLink)applyCreatorLink.hidden=isCreator;
+    }).catch(()=>{
+      if(creatorDashboardLink)creatorDashboardLink.hidden=true;
+      if(applyCreatorLink)applyCreatorLink.hidden=false;
     });
   }else{
     if(creatorDashboardLink)creatorDashboardLink.hidden=true;
-    if(myContentLink)myContentLink.hidden=true;
+    if(applyCreatorLink)applyCreatorLink.hidden=true;
   }
 
-  document.querySelectorAll('[data-auth-status]').forEach(el=>el.textContent=user?`Signed in as ${user.email||'user'}`:'Not signed in');
   const logout=document.getElementById('accountLogout');
-  if(logout)logout.hidden=!user;
-  if(logout)logout.onclick=async(e)=>{e.preventDefault();const {error}=await window.supabaseClient.auth.signOut();if(error)alert(error.message);else location.href='index.html';};
+  if(logout){
+    logout.hidden=!user;
+    logout.onclick=async(e)=>{
+      e.preventDefault();
+      const {error}=await window.supabaseClient.auth.signOut();
+      if(error)alert(error.message);else location.href='index.html';
+    };
+  }
   syncUserPreferences(user);
 }
 
 function setupAccountMenu(){
   const actions=document.querySelector('.header-actions');if(!actions)return;
   let account=document.getElementById('accountBtn');
-  if(!account){account=document.createElement('a');account.id='accountBtn';account.className='account-btn';account.href='login.html';account.textContent='Login';actions.appendChild(account);}
+  if(!account){
+    account=document.createElement('a');account.id='accountBtn';account.className='header-account-btn';account.href='login.html';account.title='Log in';account.setAttribute('aria-label','Log in');
+    account.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    actions.prepend(account);
+  }
   let container=document.getElementById('profileDropdown');
   if(!container){
     container=document.createElement('div');container.id='profileDropdown';container.className='profile-container';container.hidden=true;
     container.innerHTML=`
-      <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false" onclick="toggleDropdown(event)">
-        <span class="user-name" id="profileUserName">Account</span>
-        <img src="" alt="User Profile" class="avatar">
-        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu" onclick="toggleDropdown(event)">
+        <span class="profile-avatar-fallback" aria-hidden="true"></span>
+        <img src="" alt="User Profile" class="avatar" hidden>
       </button>
       <div class="dropdown-menu" id="accountMenu">
         <div class="user-summary"><p class="summary-name" id="summaryName">Account</p><p class="summary-email" id="summaryEmail"></p></div>
         <ul class="menu-links">
           <li><a href="creator.html" id="accountProfile">My Profile</a></li>
-          <li><a href="dashboard.html">Dashboard</a></li>
-          <li><a href="creator-dashboard.html" id="creatorDashboardLink" hidden>Creator Dashboard</a></li>
-          <li><a href="creator-dashboard.html#content" id="myContentLink" hidden>My Content</a></li>
-          <li><a href="dashboard.html#saved">Saved</a></li>
-          <li><a href="dashboard.html#following">Following</a></li>
-          <li><a href="dashboard.html#notifications">Notifications</a></li>
-          <li><a href="dashboard.html#settings">Account Settings</a></li>
+          <li><a href="account.html#saved">Saved</a></li>
+          <li><a href="account.html#following">Following</a></li>
+          <li><a href="account.html#notifications">Notifications</a></li>
+          <li><a href="account.html#settings">Account Settings</a></li>
           <li><a href="privacy.html">Security &amp; Privacy</a></li>
+          <li><a href="creator-apply.html" id="applyCreatorLink">Apply to Become a Creator</a></li>
+          <li><a href="creator-dashboard.html" id="creatorDashboardLink" hidden>Creator Dashboard</a></li>
           <li class="toggle-item"><span>Dark Mode</span><label class="switch"><input type="checkbox" id="themeToggle" aria-label="Dark Mode"><span class="slider"></span></label></li>
-          <li class="menu-language-item"><label for="menuLanguage">Language</label><select id="menuLanguage"><option value="EN">English</option><option value="FR">Français</option><option value="ES">Español</option></select></li>
         </ul>
         <div class="divider"></div><div class="logout-section"><a href="#logout" class="logout-btn" id="accountLogout">Log Out</a></div>
       </div>`;
-    actions.appendChild(container);
+    actions.prepend(container);
   }
   const trigger=container.querySelector('.profile-trigger');
   const themeToggle=document.getElementById('themeToggle');
-  const language=document.getElementById('menuLanguage');
   if(themeToggle)themeToggle.onchange=()=>setTheme(themeToggle.checked?'dark':'light');
-  if(language)language.onchange=e=>setLanguage(e.target.value);
-  document.addEventListener('click',e=>{if(!container.contains(e.target)){container.classList.remove('active');if(trigger)trigger.setAttribute('aria-expanded','false');}},{passive:true});
+  document.addEventListener('click',e=>{
+    if(!container.contains(e.target)){
+      container.classList.remove('active');
+      if(trigger)trigger.setAttribute('aria-expanded','false');
+    }
+  },{passive:true});
   applySavedPreferences();
 }
 
 function toggleDropdown(event){
   if(event)event.stopPropagation();
   const container=document.getElementById('profileDropdown');if(!container||container.hidden)return;
-  const trigger=container.querySelector('.profile-trigger');const isActive=container.classList.toggle('active');if(trigger)trigger.setAttribute('aria-expanded',String(isActive));
+  const trigger=container.querySelector('.profile-trigger');
+  const isActive=container.classList.toggle('active');
+  if(trigger)trigger.setAttribute('aria-expanded',String(isActive));
 }
 
 function setupTheme(){applySavedPreferences();}
-function applySavedPreferences(){const theme=localStorage.getItem('vexa-theme')||'dark';document.documentElement.classList.toggle('light',theme==='light');const lang=localStorage.getItem('vexa-language')||'EN';const s=document.getElementById('menuLanguage');if(s)s.value=lang;translatePage(lang);}
-function setLanguage(lang){localStorage.setItem('vexa-language',lang);const s=document.getElementById('menuLanguage');if(s)s.value=lang;translatePage(lang);syncPreference('language',lang);}
-const VEXA_I18N={EN:{'Home':'Home','Videos':'Videos','Categories':'Categories','Tags':'Tags','Community':'Community','Photos':'Photos','UPLOAD':'UPLOAD','Videos Being Watched':'Videos Being Watched','Comments':'Comments','Download':'Download','Save':'Save','Share':'Share','Report':'Report','Like':'Like','Dislike':'Dislike'},FR:{'Home':'Accueil','Videos':'Vidéos','Categories':'Catégories','Tags':'Tags','Community':'Communauté','Photos':'Photos','UPLOAD':'TÉLÉVERSER','Videos Being Watched':'Vidéos regardées','Comments':'Commentaires','Download':'Télécharger','Save':'Enregistrer','Share':'Partager','Report':'Signaler','Like':'J’aime','Dislike':'Je n’aime pas'},ES:{'Home':'Inicio','Videos':'Videos','Categories':'Categorías','Tags':'Etiquetas','Community':'Comunidad','Photos':'Fotos','UPLOAD':'SUBIR','Videos Being Watched':'Videos vistos','Comments':'Comentarios','Download':'Descargar','Save':'Guardar','Share':'Compartir','Report':'Reportar','Like':'Me gusta','Dislike':'No me gusta'}};
-function translatePage(lang){const d=VEXA_I18N[lang]||VEXA_I18N.EN;document.querySelectorAll('.side-link span,.section-title h1,.action-btn span,.comment-box h2').forEach(el=>{const k=el.dataset.i18n||el.textContent.trim();if(d[k]){el.dataset.i18n=k;el.textContent=d[k];}});}
-async function syncUserPreferences(user){if(!user||!window.supabaseClient)return;try{const {data}=await window.supabaseClient.from('user_preferences').select('theme,language').eq('user_id',user.id).maybeSingle();if(data){if(data.theme){localStorage.setItem('vexa-theme',data.theme);document.documentElement.classList.toggle('light',data.theme==='light');}if(data.language){localStorage.setItem('vexa-language',data.language);const s=document.getElementById('menuLanguage');if(s)s.value=data.language;translatePage(data.language);}}}catch(e){}}
-async function syncPreference(key,value){const c=window.supabaseClient;if(!c)return;try{const {data:{user}}=await c.auth.getUser();if(!user)return;await c.from('user_preferences').upsert({user_id:user.id,[key]:value},{onConflict:'user_id'});}catch(e){}}
+function applySavedPreferences(){
+  const theme=localStorage.getItem('vexa-theme')||'dark';
+  document.documentElement.classList.toggle('light',theme==='light');
+  const toggle=document.getElementById('themeToggle');
+  if(toggle)toggle.checked=theme!=='light';
+}
+function setTheme(theme){
+  const next=theme==='light'?'light':'dark';
+  localStorage.setItem('vexa-theme',next);
+  document.documentElement.classList.toggle('light',next==='light');
+  const toggle=document.getElementById('themeToggle');
+  if(toggle)toggle.checked=next==='dark';
+  syncPreference('theme',next);
+}
+async function syncUserPreferences(user){
+  if(!user||!window.supabaseClient)return;
+  try{
+    const {data}=await window.supabaseClient.from('user_preferences').select('theme').eq('user_id',user.id).maybeSingle();
+    if(data?.theme){
+      localStorage.setItem('vexa-theme',data.theme);
+      document.documentElement.classList.toggle('light',data.theme==='light');
+      const toggle=document.getElementById('themeToggle');
+      if(toggle)toggle.checked=data.theme==='dark';
+    }
+  }catch(e){}
+}
+async function syncPreference(key,value){
+  const c=window.supabaseClient;if(!c)return;
+  try{
+    const {data:{user}}=await c.auth.getUser();if(!user)return;
+    await c.from('user_preferences').upsert({user_id:user.id,[key]:value},{onConflict:'user_id'});
+  }catch(e){}
+}
 
 function setupMobileSidebar(){
   const btn=document.getElementById('hamburgerBtn'), aside=document.querySelector('.sidebar');
@@ -243,6 +287,112 @@ async function loadTags(){
   const cloud=document.getElementById('tagCloud');let tags=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('vexa_published_videos').select('tags').limit(500);if(data)data.forEach(v=>(Array.isArray(v.tags)?v.tags:[]).forEach(t=>tags.push(String(t))));}if(!tags.length)VEXA_LOCAL.forEach(v=>(v.tags||[]).forEach(t=>tags.push(String(t))));const counts={};tags.forEach(t=>counts[t]=(counts[t]||0)+1);const unique=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));const selected=new URLSearchParams(location.search).get('tag');cloud.innerHTML=unique.map(t=>`<a class="tag-link" href="videos.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)} <span class="muted">${counts[t]}</span></a>`).join('')||'<p class="muted">No tags yet.</p>';if(selected)document.querySelectorAll('.tag-link').forEach(a=>{if(a.textContent.toLowerCase().includes(selected.toLowerCase()))a.style.background='var(--accent)';});
 }
 async function renderCreatorPage(){
-  const box=document.getElementById('creatorPage'),id=new URLSearchParams(location.search).get('id');if(!id){box.innerHTML='<p class="muted">Creator not found.</p>';return;}let videos=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('videos').select('*').eq('uploader_id',id).eq('status','published').limit(300);if(data)videos=data.map(normalizeVideo);}let profile=null;if(window.supabaseClient){const {data}=await window.supabaseClient.from('profiles').select('username,display_name').eq('id',id).maybeSingle();profile=data;}const name=profile?.display_name||profile?.username||videos[0]?.uploader_name||'Creator';let followerCount=0,following=false,currentUser=null;if(window.supabaseClient){const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});if(!count.error)followerCount=Number(count.data||0);const auth=await window.supabaseClient.auth.getUser();currentUser=auth.data.user;if(currentUser&&currentUser.id!==id){const f=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',id).eq('follower_id',currentUser.id).maybeSingle();following=!!f.data;}}
-  const followButton=currentUser&&currentUser.id!==id?`<button class="btn follow-btn" id="followBtn">${following?'Following':'Follow'}</button>`:'';box.innerHTML=`<div class="profile-head"><div class="avatar">${vexaEsc(name.slice(0,1).toUpperCase())}</div><div style="flex:1"><h1 style="margin:0">${vexaEsc(name)}</h1><div class="muted"><span id="followerCount">${followerCount}</span> followers</div></div>${followButton}</div><div class="grid home-grid" id="creatorGrid"></div>`;document.getElementById('creatorGrid').innerHTML=videos.map(createCard).join('')||'<p class="muted">No published content yet.</p>';setupPreviews();if(window.supabaseClient&&id)window.supabaseClient.rpc('record_creator_profile_view',{p_creator_id:id}).catch(()=>{});const fb=document.getElementById('followBtn');if(fb)fb.onclick=async()=>{if(following){const {error}=await window.supabaseClient.from('creator_followers').delete().eq('creator_id',id).eq('follower_id',currentUser.id);if(error){alert(error.message);return;}following=false;}else{const {error}=await window.supabaseClient.from('creator_followers').insert({creator_id:id,follower_id:currentUser.id});if(error){alert(error.message);return;}following=true;}fb.textContent=following?'Following':'Follow';const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});if(!count.error)document.getElementById('followerCount').textContent=Number(count.data||0);};
+  const box=document.getElementById('creatorPage'),id=new URLSearchParams(location.search).get('id');
+  if(!id){box.innerHTML='<p class="muted">Profile not found.</p>';return;}
+  if(!window.supabaseClient){box.innerHTML='<p class="muted">Supabase is not connected.</p>';return;}
+
+  const [{data:profile,error:profileError},{data:videoRows},{data:photoRows}]=await Promise.all([
+    window.supabaseClient.from('vexa_public_profiles').select('*').eq('id',id).maybeSingle(),
+    window.supabaseClient.from('videos').select('*').eq('uploader_id',id).eq('status','published').order('created_at',{ascending:false}).limit(300),
+    window.supabaseClient.from('photos').select('*').eq('uploader_id',id).eq('status','published').order('created_at',{ascending:false}).limit(300)
+  ]);
+  if(profileError){box.innerHTML=`<p class="muted">${vexaEsc(profileError.message)}</p>`;return;}
+  if(!profile){box.innerHTML='<p class="muted">Profile not found.</p>';return;}
+
+  const videos=(videoRows||[]).map(normalizeVideo);
+  const photos=(photoRows||[]).map(p=>({...p,_type:'photo'}));
+  const posts=[...videos.map(v=>({...v,_type:'video'})),...photos].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  const name=profile.display_name||profile.username||'Creator';
+  const handle=profile.username?`@${profile.username}`:'';
+  const country=profile.country||'';
+  const avatar=profile.avatar_url||'';
+  const banner=profile.banner_url||'';
+  const creator=profile.is_creator===true;
+  const totalViews=videos.reduce((sum,v)=>sum+Number(v.views||0),0);
+
+  let followerCount=0,subscribed=false,currentUser=null;
+  const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});
+  if(!count.error)followerCount=Number(count.data||0);
+  const auth=await window.supabaseClient.auth.getUser();currentUser=auth.data.user||null;
+  if(currentUser&&currentUser.id!==id){
+    const f=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',id).eq('follower_id',currentUser.id).maybeSingle();
+    subscribed=!!f.data;
+  }
+
+  const avatarMarkup=avatar
+    ? `<img class="creator-avatar-img" src="${vexaEsc(avatar)}" alt="">`
+    : `<div class="creator-avatar-fallback">${vexaEsc(name.slice(0,1).toUpperCase())}</div>`;
+  const verify=creator&&profile.creator_verified?'<span class="verified-badge" title="Verified Creator">✓</span>':'';
+  const bannerMarkup=banner?`<div class="creator-cover"><img src="${vexaEsc(banner)}" alt=""></div>`:'';
+  const subscribeMarkup=creator&&currentUser&&currentUser.id!==id
+    ? `<button class="btn subscribe-btn" id="subscribeBtn">${subscribed?'Subscribed':'Subscribe'} ${followerCount.toLocaleString()}</button>`
+    : creator ? `<span class="creator-subscriber-count">${followerCount.toLocaleString()} subscribers</span>` : '';
+
+  box.innerHTML=`
+    <section class="creator-profile">
+      ${bannerMarkup}
+      <div class="creator-identity-row">
+        <div class="creator-avatar">${avatarMarkup}</div>
+        <div class="creator-identity">
+          <div class="creator-name-row"><h1>${vexaEsc(name)}</h1>${verify}</div>
+          ${handle?`<div class="creator-handle">${vexaEsc(handle)}</div>`:''}
+          ${country?`<div class="creator-country">${vexaEsc(country)}</div>`:''}
+        </div>
+        <div class="creator-stat-actions">
+          <span class="creator-view-count">${totalViews.toLocaleString()} views</span>
+          ${subscribeMarkup}
+        </div>
+      </div>
+      <nav class="creator-content-nav" aria-label="Creator content">
+        <button class="creator-tab active" type="button" data-content-tab="posts">Posts</button>
+        <button class="creator-tab" type="button" data-content-tab="videos">Videos</button>
+        <button class="creator-tab" type="button" data-content-tab="photos">Photos</button>
+      </nav>
+    </section>
+    <section class="creator-content-section">
+      <div id="creatorContentGrid" class="grid home-grid"></div>
+    </section>`;
+
+  const grid=document.getElementById('creatorContentGrid');
+  const renderItems=(items,type)=>{
+    if(type==='photos'){
+      grid.className='photo-grid creator-content-grid';
+      grid.innerHTML=items.length?items.map(p=>`<article class="photo-card"><a href="${vexaEsc(p.image_url||p.thumbnail_url||'')}" target="_blank" rel="noopener"><img src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt=""></a><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">Uploaded ${formatUploadAge(p.created_at).replace(/^Uploaded /,'')}</div></div></article>`).join(''):'<p class="muted">No photos yet.</p>';
+    }else if(type==='posts'){
+      grid.className='grid home-grid creator-content-grid creator-posts-grid';
+      grid.innerHTML=items.length?items.map(item=>item._type==='photo'?`<article class="card photo-post-card"><a href="${vexaEsc(item.image_url||item.thumbnail_url||'')}" target="_blank" rel="noopener"><div class="thumb"><img class="thumb-img" src="${vexaEsc(item.thumbnail_url||item.image_url||'')}" alt=""></div><div class="card-body"><h3>${vexaEsc(item.title||'Untitled')}</h3><div class="card-meta">Photo · ${formatUploadAge(item.created_at)}</div></div></a></article>`:createCard(item)).join(''):'<p class="muted">No posts yet.</p>';
+      setupPreviews();
+    }else{
+      grid.className='grid home-grid creator-content-grid';
+      grid.innerHTML=items.length?items.map(createCard).join(''):'<p class="muted">No videos yet.</p>';
+      setupPreviews();
+    }
+  };
+  const tabs={posts,video:videos,photos};
+  renderItems(posts,'posts');
+  document.querySelectorAll('.creator-tab').forEach(tab=>{
+    tab.onclick=()=>{
+      document.querySelectorAll('.creator-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const key=tab.dataset.contentTab;
+      if(key==='photos')renderItems(photos,'photos');
+      else if(key==='videos')renderItems(videos,'videos');
+      else renderItems(posts,'posts');
+    };
+  });
+
+  if(window.supabaseClient&&id)window.supabaseClient.rpc('record_creator_profile_view',{p_creator_id:id}).catch(()=>{});
+  const sb=document.getElementById('subscribeBtn');
+  if(sb)sb.onclick=async()=>{
+    if(!currentUser)return location.href='login.html';
+    const q=subscribed
+      ? window.supabaseClient.from('creator_followers').delete().eq('creator_id',id).eq('follower_id',currentUser.id)
+      : window.supabaseClient.from('creator_followers').insert({creator_id:id,follower_id:currentUser.id});
+    const {error}=await q;if(error){alert(error.message);return;}
+    subscribed=!subscribed;
+    const next=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});
+    followerCount=!next.error?Number(next.data||0):followerCount+(subscribed?1:-1);
+    sb.textContent=`${subscribed?'Subscribed':'Subscribe'} ${followerCount.toLocaleString()}`;
+  };
 }
+

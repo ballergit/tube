@@ -19,9 +19,20 @@ alter table public.profiles add column if not exists display_name text;
 alter table public.profiles add column if not exists role text not null default 'user';
 alter table public.profiles add column if not exists is_creator boolean not null default false;
 
+-- VEXA ADMIN ACCOUNT
+-- This email is an administrator account. The check is based on the
+-- authenticated Supabase email as well as the profile role, so the admin
+-- can access the admin portal even if the profile row has not yet been
+-- promoted manually.
 create or replace function public.is_vexa_admin()
 returns boolean language sql stable security definer set search_path=public
-as $$ select exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'); $$;
+as $$
+  select exists(
+    select 1 from public.profiles p
+    where p.id=auth.uid() and p.role='admin'
+  )
+  or lower(coalesce(auth.jwt()->>'email','')) = lower('Gnballer96@gmail.com');
+$$;
 grant execute on function public.is_vexa_admin() to anon, authenticated;
 
 create or replace function public.is_vexa_creator()
@@ -60,11 +71,27 @@ for each row execute function public.prevent_role_self_escalation();
 create or replace function public.handle_vexa_new_user()
 returns trigger language plpgsql security definer set search_path=public
 as $$ begin
-  insert into public.profiles(id,username,display_name) values(new.id,new.raw_user_meta_data->>'username',coalesce(new.raw_user_meta_data->>'display_name',new.raw_user_meta_data->>'username')) on conflict(id) do update set username=coalesce(excluded.username,profiles.username),display_name=coalesce(excluded.display_name,profiles.display_name);
+  insert into public.profiles(id,username,display_name,role)
+  values(
+    new.id,
+    new.raw_user_meta_data->>'username',
+    coalesce(new.raw_user_meta_data->>'display_name',new.raw_user_meta_data->>'username'),
+    case when lower(coalesce(new.email,''))=lower('Gnballer96@gmail.com') then 'admin' else 'user' end
+  )
+  on conflict(id) do update set
+    username=coalesce(excluded.username,profiles.username),
+    display_name=coalesce(excluded.display_name,profiles.display_name),
+    role=case when lower(coalesce(new.email,''))=lower('Gnballer96@gmail.com') then 'admin' else profiles.role end;
   return new;
 end $$;
 drop trigger if exists on_auth_user_created_vexa on auth.users;
 create trigger on_auth_user_created_vexa after insert on auth.users for each row execute function public.handle_vexa_new_user();
+
+-- Promote the existing account with the configured admin email when it exists.
+update public.profiles p
+set role='admin'
+from auth.users u
+where p.id=u.id and lower(coalesce(u.email,''))=lower('Gnballer96@gmail.com');
 
 -- ============================================================
 -- VIDEOS: publishing workflow, featured/trending, scheduling
@@ -497,8 +524,9 @@ create table if not exists public.creator_followers (
 );
 alter table public.creator_followers enable row level security;
 drop policy if exists "creator_followers_public_read" on public.creator_followers;
-create policy "creator_followers_public_read" on public.creator_followers
-for select using (true);
+drop policy if exists "creator_followers_select_own" on public.creator_followers;
+create policy "creator_followers_select_own" on public.creator_followers
+for select to authenticated using (auth.uid()=follower_id);
 drop policy if exists "creator_followers_insert_own" on public.creator_followers;
 create policy "creator_followers_insert_own" on public.creator_followers
 for insert to authenticated with check (auth.uid()=follower_id and follower_id<>creator_id);
@@ -632,3 +660,73 @@ alter table public.video_comments alter column user_id drop not null;
 drop policy if exists "comments_insert_guest" on public.video_comments;
 create policy "comments_insert_guest" on public.video_comments for insert to anon, authenticated
 with check(user_id is null and length(trim(coalesce(guest_name,''))) between 1 and 80 and status='pending');
+
+
+-- ============================================================
+-- V4 CREATOR PROFILES + APPLICATIONS
+-- ============================================================
+alter table public.profiles add column if not exists country text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists banner_url text;
+alter table public.profiles add column if not exists creator_verified boolean not null default false;
+
+-- Public creator-facing profile view. Sensitive account fields such as email and admin role
+-- are deliberately excluded.
+drop view if exists public.vexa_public_profiles;
+create or replace view public.vexa_public_profiles as
+select id, username, display_name, is_creator, country, avatar_url, banner_url, creator_verified
+from public.profiles;
+grant select on public.vexa_public_profiles to anon, authenticated;
+
+create table if not exists public.creator_applications (
+  id bigint generated by default as identity primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  country text not null,
+  reason text not null,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  reviewed_at timestamptz,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+alter table public.creator_applications enable row level security;
+drop policy if exists "creator_applications_select_own_or_admin" on public.creator_applications;
+create policy "creator_applications_select_own_or_admin" on public.creator_applications
+for select using (auth.uid()=user_id or public.is_vexa_admin());
+drop policy if exists "creator_applications_insert_own" on public.creator_applications;
+create policy "creator_applications_insert_own" on public.creator_applications
+for insert to authenticated with check (auth.uid()=user_id and not public.is_vexa_creator());
+drop policy if exists "creator_applications_update_admin" on public.creator_applications;
+create policy "creator_applications_update_admin" on public.creator_applications
+for update to authenticated using (public.is_vexa_admin()) with check (public.is_vexa_admin());
+
+create or replace function public.vexa_apply_creator(p_country text,p_reason text)
+returns text language plpgsql security definer set search_path=public as $$
+begin
+  if auth.uid() is null then raise exception 'Login required'; end if;
+  if public.is_vexa_creator() then return 'Your account already has creator access.'; end if;
+  if exists(select 1 from public.creator_applications where user_id=auth.uid() and status='pending') then
+    return 'Your creator application is already pending review.';
+  end if;
+  if length(trim(coalesce(p_country,'')))=0 then raise exception 'Country is required'; end if;
+  if length(trim(coalesce(p_reason,'')))=0 then raise exception 'Please tell us why you want creator access'; end if;
+  insert into public.creator_applications(user_id,country,reason,status) values(auth.uid(),trim(p_country),trim(p_reason),'pending');
+  update public.profiles set country=trim(p_country) where id=auth.uid();
+  return 'Application submitted for review.';
+end $$;
+grant execute on function public.vexa_apply_creator(text,text) to authenticated;
+
+create or replace function public.vexa_review_creator_application(p_application_id bigint,p_status text)
+returns text language plpgsql security definer set search_path=public as $$
+declare target_id uuid; app_country text;
+begin
+  if not public.is_vexa_admin() then raise exception 'Admin access required'; end if;
+  if p_status not in ('approved','rejected','pending') then raise exception 'Invalid application status'; end if;
+  select user_id,country into target_id,app_country from public.creator_applications where id=p_application_id;
+  if target_id is null then raise exception 'Application not found'; end if;
+  update public.creator_applications set status=p_status,reviewed_at=case when p_status='pending' then null else now() end,reviewed_by=case when p_status='pending' then null else auth.uid() end where id=p_application_id;
+  if p_status='approved' then
+    update public.profiles set is_creator=true,country=coalesce(nullif(trim(app_country),''),country) where id=target_id;
+  end if;
+  return case when p_status='approved' then 'Creator application approved.' when p_status='rejected' then 'Creator application rejected.' else 'Creator application returned to pending.' end;
+end $$;
+grant execute on function public.vexa_review_creator_application(bigint,text) to authenticated;

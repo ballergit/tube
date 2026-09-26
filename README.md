@@ -53,3 +53,20 @@ The browser never receives the service-role key. Admin access is still checked t
 - Admin page now presents an admin login gate directly instead of an endless loading state; successful admin authentication opens the portal.
 - Added creator access controls and server-side creator check helpers.
 - Video cards and video detail pages show how long ago each video was uploaded.
+
+
+## V4 checkpoint changes
+- Reworked the shared header: hamburger inside the heading, centered site name, compact account/settings controls.
+- Replaced the emoji account button with inline SVG user/gear icons.
+- Compact profile dropdown opens directly under the profile icon; removed Language control.
+- Dark Mode toggle now calls a real setTheme() function and persists locally/Supabase.
+- Regular account menu no longer exposes Dashboard. Creator Dashboard is shown only to creator accounts.
+- Added creator application page and Supabase creator application workflow/admin review.
+- Creator profile now shows circular avatar, name, handle, country, views, Subscribe control, and Posts/Videos/Photos navigation.
+- Added public creator profile view for guests without exposing account email/admin role.
+- Upload page supports selecting multiple photos in one submission.
+- Added dedicated Forgot Password and Reset Password pages.
+- Admin page now redirects unauthenticated/non-admin visitors to the dedicated Admin Login page instead of leaving the portal on a loading gate.
+- Preserved upload-age metadata on video cards and video pages.
+
+- Added a dedicated `account.html` for regular accounts; the old `dashboard.html` URL redirects to Account so normal users do not get a Dashboard page.
