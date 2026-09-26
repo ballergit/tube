@@ -19,7 +19,9 @@ alter table public.profiles add column if not exists display_name text;
 alter table public.profiles add column if not exists role text not null default 'user';
 alter table public.profiles add column if not exists is_creator boolean not null default false;
 
--- VEXA ADMIN ACCOUNT
+-- VEXA ADMIN ACCOUNT / GITHUB ADMIN
+-- The configured Vexa admin signs in through GitHub OAuth.
+-- The GitHub account must return this email from the OAuth identity for the email-based admin rule below to match.
 -- This email is an administrator account. The check is based on the
 -- authenticated Supabase email as well as the profile role, so the admin
 -- can access the admin portal even if the profile row has not yet been
@@ -27,11 +29,10 @@ alter table public.profiles add column if not exists is_creator boolean not null
 create or replace function public.is_vexa_admin()
 returns boolean language sql stable security definer set search_path=public
 as $$
-  select exists(
-    select 1 from public.profiles p
-    where p.id=auth.uid() and p.role='admin'
-  )
-  or lower(coalesce(auth.jwt()->>'email','')) = lower('Gnballer96@gmail.com');
+  select auth.uid() is not null and (
+    exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin')
+    or lower(coalesce(auth.jwt()->>'email','')) = lower('Gnballer96@gmail.com')
+  );
 $$;
 grant execute on function public.is_vexa_admin() to anon, authenticated;
 
@@ -425,6 +426,32 @@ create policy "view_events_insert_guest" on public.video_view_events for insert 
 create or replace function public.record_video_view(p_video_id bigint) returns bigint language plpgsql security definer set search_path=public as $$ declare new_views bigint; begin insert into public.video_view_events(video_id,user_id) values(p_video_id,auth.uid()); update public.videos set views=coalesce(views,0)+1 where id=p_video_id returning views into new_views; return new_views; end $$;
 grant execute on function public.record_video_view(bigint) to anon, authenticated;
 
+-- Public creator directory data. It exposes only creator-facing fields and aggregate content counts.
+create or replace function public.vexa_public_creators()
+returns table(
+  id uuid,
+  username text,
+  display_name text,
+  country text,
+  avatar_url text,
+  posts bigint,
+  views bigint,
+  latest_post timestamptz,
+  tags text[]
+) language sql stable security definer set search_path=public
+as $$
+  select p.id,p.username,p.display_name,p.country,p.avatar_url,
+    (select count(*) from public.videos v where v.uploader_id=p.id and v.status='published') +
+    (select count(*) from public.photos ph where ph.uploader_id=p.id and ph.status='published'),
+    coalesce((select sum(coalesce(v.views,0)) from public.videos v where v.uploader_id=p.id and v.status='published'),0),
+    greatest((select max(v.created_at) from public.videos v where v.uploader_id=p.id and v.status='published'),(select max(ph.created_at) from public.photos ph where ph.uploader_id=p.id and ph.status='published')),
+    coalesce((select array_agg(distinct t) from public.videos v, unnest(v.tags) t where v.uploader_id=p.id and v.status='published'),'{}')
+  from public.profiles p
+  where p.is_creator=true
+  order by posts desc, p.display_name nulls last;
+$$;
+grant execute on function public.vexa_public_creators() to anon, authenticated;
+
 -- ============================================================
 -- ============================================================
 -- CREATOR ACCESS + PRIVATE CREATOR STATS
@@ -730,3 +757,11 @@ begin
   return case when p_status='approved' then 'Creator application approved.' when p_status='rejected' then 'Creator application rejected.' else 'Creator application returned to pending.' end;
 end $$;
 grant execute on function public.vexa_review_creator_application(bigint,text) to authenticated;
+
+-- VEXA SCALE INDEXES: keep listing/search/pagination fast as content grows well beyond 500,000 rows.
+create index if not exists videos_published_created_idx on public.videos(status, created_at desc, id desc);
+create index if not exists videos_uploader_created_idx on public.videos(uploader_id, created_at desc, id desc);
+create index if not exists photos_published_created_idx on public.photos(status, created_at desc, id desc);
+create index if not exists photos_uploader_created_idx on public.photos(uploader_id, created_at desc, id desc);
+create index if not exists saved_videos_user_created_idx on public.saved_videos(user_id, created_at desc, video_id);
+create index if not exists creator_followers_follower_created_idx on public.creator_followers(follower_id, created_at desc, creator_id);

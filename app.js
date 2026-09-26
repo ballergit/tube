@@ -15,11 +15,13 @@ const icon = {
 };
 
 window.addEventListener('DOMContentLoaded', async()=>{
-  setupTheme(); setupMobileSidebar(); setupAccountMenu(); setupAuthUI(); await applySiteSettings();
+  setupTheme(); setupMobileSidebar(); setupAccountMenu(); setupAuthUI(); setupAdultAgreement(); await applySiteSettings();
+  if(document.getElementById('communityProfiles')) return loadCommunity();
   if(document.getElementById('tagCloud')) return loadTags();
   if(document.getElementById('creatorPage')) return renderCreatorPage();
   if(document.getElementById('videoPage')) return renderVideoPage();
   if(document.getElementById('photoGrid')) return loadPhotosPage();
+  if(document.getElementById('homeSearchBtn')) setupHomeSearch();
   if(document.getElementById('videoGrid')) return loadListing();
 });
 
@@ -68,19 +70,22 @@ function updateAuthUI(user){
     if(url){avatarEl.src=url;avatarEl.hidden=false;}
     else{avatarEl.removeAttribute('src');avatarEl.hidden=true;}
   }
-  if(profileLink&&user)profileLink.href='creator.html?id='+encodeURIComponent(user.id);
   if(toggle)toggle.checked=localStorage.getItem('vexa-theme')!=='light';
 
   if(user&&window.supabaseClient){
     window.supabaseClient.rpc('is_vexa_creator').then(({data,error})=>{
       const isCreator=!error&&data===true;
+      if(profileLink)profileLink.hidden=!isCreator;
       if(creatorDashboardLink)creatorDashboardLink.hidden=!isCreator;
       if(applyCreatorLink)applyCreatorLink.hidden=isCreator;
+      if(isCreator&&profileLink)profileLink.href='creator.html?id='+encodeURIComponent(user.id);
     }).catch(()=>{
+      if(profileLink)profileLink.hidden=true;
       if(creatorDashboardLink)creatorDashboardLink.hidden=true;
       if(applyCreatorLink)applyCreatorLink.hidden=false;
     });
   }else{
+    if(profileLink)profileLink.hidden=true;
     if(creatorDashboardLink)creatorDashboardLink.hidden=true;
     if(applyCreatorLink)applyCreatorLink.hidden=true;
   }
@@ -116,9 +121,9 @@ function setupAccountMenu(){
       <div class="dropdown-menu" id="accountMenu">
         <div class="user-summary"><p class="summary-name" id="summaryName">Account</p><p class="summary-email" id="summaryEmail"></p></div>
         <ul class="menu-links">
-          <li><a href="creator.html" id="accountProfile">My Profile</a></li>
-          <li><a href="account.html#saved">Saved</a></li>
-          <li><a href="account.html#following">Following</a></li>
+          <li><a href="creator.html" id="accountProfile" hidden>My Profile</a></li>
+          <li><a href="saved.html">Saved</a></li>
+          <li><a href="following.html">Following</a></li>
           <li><a href="account.html#notifications">Notifications</a></li>
           <li><a href="account.html#settings">Account Settings</a></li>
           <li><a href="privacy.html">Security &amp; Privacy</a></li>
@@ -214,19 +219,40 @@ async function applySiteSettings(){
 
 async function loadListing(){
   allVideos=VEXA_LOCAL.map(normalizeVideo);
-  if(window.supabaseClient){const {data,error}=await window.supabaseClient.from('vexa_published_videos').select('*').limit(300);if(!error&&data?.length)allVideos=data.map(normalizeVideo);}
   const selectedTag=new URLSearchParams(location.search).get('tag');
-  if(selectedTag)allVideos=allVideos.filter(v=>(v.tags||[]).some(t=>String(t).toLowerCase()===selectedTag.toLowerCase()));
+  if(window.supabaseClient){
+    const from=Math.max(0,(currentPage-1)*PAGE_SIZE),to=from+PAGE_SIZE-1;
+    let query=window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);
+    const search=new URLSearchParams(location.search).get('search');
+    if(selectedTag)query=query.contains('tags',[selectedTag]);
+    if(search)query=query.ilike('title',`%${search.replace(/[%_]/g,'')}%`);
+    const {data,error,count}=await query;
+    if(!error&&Array.isArray(data)){
+      allVideos=data.map(normalizeVideo);
+      window.vexaServerVideoCount=count||0;
+      window.vexaServerVideoPage=true;
+    }
+  }
   if(document.body.dataset.home==='true')return renderHome();
   renderGrid(allVideos);
 }
+
 function normalizeVideo(v){return {...v,thumbnail:v.thumbnail_url||v.thumbnail||'https://placehold.co/640x360/111/fff?text=Vexa',video:v.video_url||v.video,preview:v.preview_url||v.preview,download:v.video_url||v.download,category:v.category||'Video',tags:Array.isArray(v.tags)?v.tags:[],uploader_id:v.uploader_id||v.user_id||v.created_by,uploader_name:v.uploader_name||v.creator_name||v.username||'Vexa Creator',duration:v.duration||v.duration_text||'',quality:v.quality||v.resolution||''};}
 function formatUploadAge(date){if(!date)return'Upload date unavailable';const t=new Date(date).getTime();if(!Number.isFinite(t))return'Upload date unavailable';let sec=Math.max(0,Math.floor((Date.now()-t)/1000));if(sec<60)return'Uploaded just now';const min=Math.floor(sec/60);if(min<60)return`Uploaded ${min} minute${min===1?'':'s'} ago`;const hr=Math.floor(min/60);if(hr<24)return`Uploaded ${hr} hour${hr===1?'':'s'} ago`;const day=Math.floor(hr/24);if(day<30)return`Uploaded ${day} day${day===1?'':'s'} ago`;const month=Math.floor(day/30);if(month<12)return`Uploaded ${month} month${month===1?'':'s'} ago`;const year=Math.floor(month/12);return`Uploaded ${year} year${year===1?'':'s'} ago`;}
+
+
+function setupHomeSearch(){
+  const btn=document.getElementById('homeSearchBtn'),box=document.getElementById('homeSearch'),form=document.getElementById('homeSearchForm'),input=document.getElementById('homeSearchInput');
+  if(!btn||!box||!form)return;
+  btn.onclick=()=>{box.hidden=!box.hidden;if(!box.hidden){input.focus();}};
+  form.onsubmit=e=>{e.preventDefault();const q=input.value.trim();if(q)location.href='videos.html?search='+encodeURIComponent(q);};
+}
 
 function formatViews(n){return Number(n||0).toLocaleString();}
 function renderGrid(list=allVideos){
   currentList=list;const grid=document.getElementById('videoGrid');if(!grid)return;
-  const total=Math.max(1,Math.ceil(list.length/PAGE_SIZE));currentPage=Math.min(currentPage,total);const start=(currentPage-1)*PAGE_SIZE;
+  const total=window.vexaServerVideoPage?Math.max(1,Math.ceil((window.vexaServerVideoCount||list.length)/PAGE_SIZE)):Math.max(1,Math.ceil(list.length/PAGE_SIZE));
+  currentPage=Math.min(currentPage,total);const start=window.vexaServerVideoPage?0:(currentPage-1)*PAGE_SIZE;
   grid.innerHTML=list.slice(start,start+PAGE_SIZE).map(createCard).join('')||`<p class="muted">No videos found.</p>`;setupPreviews();renderPagination(total);
 }
 function createCard(v){
@@ -234,7 +260,7 @@ function createCard(v){
 }
 function setupPreviews(){document.querySelectorAll('.video-card').forEach(card=>{const video=card.querySelector('.preview-video');if(!video)return;let timer=null,previewing=false;const start=()=>{clearTimeout(timer);timer=setTimeout(()=>{video.currentTime=0;video.play().catch(()=>{});card.classList.add('previewing');previewing=true;},450)};const stop=()=>{clearTimeout(timer);timer=null;video.pause();video.currentTime=0;card.classList.remove('previewing');previewing=false};card.addEventListener('mouseenter',start);card.addEventListener('mouseleave',stop);card.addEventListener('touchstart',start,{passive:true});card.addEventListener('touchend',()=>{if(previewing)stop()},{passive:true});card.addEventListener('touchcancel',stop,{passive:true});});}
 function renderPagination(total){const p=document.getElementById('pagination');if(!p)return;if(total<=1){p.innerHTML='';return;}let html=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaPage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaPage(${n})">${n}</button>`;html+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaPage(${currentPage+1})">Next</button>`;p.innerHTML=html;}
-window.vexaPage=n=>{currentPage=Math.max(1,n);renderGrid(currentList);window.scrollTo({top:0,behavior:'smooth'});};
+window.vexaPage=async n=>{currentPage=Math.max(1,n);if(window.vexaServerVideoPage){await loadListing();}else renderGrid(currentList);window.scrollTo({top:0,behavior:'smooth'});};
 
 async function renderHome(){
   const main=document.querySelector('.main');if(!main)return;
@@ -244,15 +270,30 @@ async function renderHome(){
   const enabled=Array.isArray(settings?.enabled)?settings.enabled:defaults.filter(x=>x.enabled).map(x=>x.key);
   const active=sections.filter(s=>enabled.includes(s.key));
   main.innerHTML=active.map(s=>`<section class="home-section" data-home-section="${s.key}"><div class="section-title"><h1>${vexaEsc(s.label)}</h1>${s.key==='watched'?'<span class="section-plus">+</span>':''}</div><div class="grid home-grid" id="home-${s.key}"></div></section>`).join('')+'<div id="homePagination" class="pagination"></div>';
-  for(const s of active){let list=allVideos;if(s.key==='featured')list=allVideos.filter(v=>v.featured);if(s.key==='trending')list=allVideos.filter(v=>v.trending);const grid=document.getElementById(`home-${s.key}`);if(!list.length){grid.innerHTML='<p class="muted">No published videos yet.</p>';continue;}grid.innerHTML=list.slice(0,12).map(createCard).join('');}
+  let watched=window.vexaHomePageData||allVideos;
+  if(!window.vexaHomePageData&&window.supabaseClient){try{const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(0,PAGE_SIZE-1);if(Array.isArray(data)&&data.length){watched=data.map(normalizeVideo);window.vexaHomeCount=count||0;}}catch(e){}}
+  const watchedGrid=document.getElementById('home-watched');
+  if(watchedGrid){const total=Math.max(1,Math.ceil((window.vexaHomeCount||watched.length)/PAGE_SIZE));const start=window.vexaHomePageData?0:(currentPage-1)*PAGE_SIZE;watchedGrid.innerHTML=watched.slice(start,start+PAGE_SIZE).map(createCard).join('');const hp=document.getElementById('homePagination');if(hp){let html=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaHomePage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaHomePage(${n})">${n}</button>`;html+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaHomePage(${currentPage+1})">Next</button>`;hp.innerHTML=html;}}
+  for(const s of active.filter(x=>x.key!=='watched')){let list=allVideos;if(s.key==='featured')list=allVideos.filter(v=>v.featured);if(s.key==='trending')list=allVideos.filter(v=>v.trending);const grid=document.getElementById(`home-${s.key}`);if(!grid)continue;if(!list.length){grid.innerHTML='<p class="muted">No published videos yet.</p>';continue;}grid.innerHTML=list.slice(0,12).map(createCard).join('');}
   setupPreviews();
 }
+window.vexaHomePage=async n=>{currentPage=Math.max(1,n);if(window.supabaseClient){try{const from=(currentPage-1)*PAGE_SIZE;const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,from+PAGE_SIZE-1);window.vexaHomeCount=count||0;window.vexaHomePageData=(data||[]).map(normalizeVideo);}catch(e){}}renderHome();window.scrollTo({top:0,behavior:'smooth'});};
 
+
+let photoList=[],photoPage=1;const PHOTO_PAGE_SIZE=20;
 async function loadPhotosPage(){
-  const grid=document.getElementById('photoGrid');if(!grid)return;let photos=[];
-  if(window.supabaseClient){const {data,error}=await window.supabaseClient.from('vexa_published_photos').select('*').limit(300);if(!error&&data)photos=data;}
-  grid.innerHTML=photos.map(p=>`<article class="card photo-card"><a href="${vexaEsc(p.image_url)}" target="_blank" rel="noopener"><img src="${vexaEsc(p.thumbnail_url||p.image_url)}" alt="${vexaEsc(p.title||'Photo')}" loading="lazy"></a><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">${formatViews(p.views||0)} views</div></div></article>`).join('')||'<p class="muted">No published photos yet.</p>';
+  const grid=document.getElementById('photoGrid');if(!grid)return;photoList=[];
+  if(window.supabaseClient){const {data,error}=await window.supabaseClient.from('vexa_published_photos').select('*').limit(300);if(!error&&data)photoList=data;}
+  if(!photoList.length)photoList=Array.from({length:36},(_,i)=>({id:`demo-${i+1}`,title:`Sample Photo ${i+1}`,image_url:`https://placehold.co/800x600/f0f0f0/222?text=Vexa+Photo+${i+1}`,thumbnail_url:`https://placehold.co/800x600/f0f0f0/222?text=Vexa+Photo+${i+1}`,views:300+i*41,created_at:new Date(Date.now()-i*86400000).toISOString()}));
+  photoPage=1;renderPhotoPage();
 }
+function renderPhotoPage(){
+  const grid=document.getElementById('photoGrid'),pager=document.getElementById('photoPagination');if(!grid)return;
+  const total=Math.max(1,Math.ceil(photoList.length/PHOTO_PAGE_SIZE));photoPage=Math.min(photoPage,total);const start=(photoPage-1)*PHOTO_PAGE_SIZE;const rows=photoList.slice(start,start+PHOTO_PAGE_SIZE);
+  grid.innerHTML=rows.map(p=>`<article class="card photo-card"><a href="${vexaEsc(p.image_url||p.thumbnail_url||'')}" target="_blank" rel="noopener"><img src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt="${vexaEsc(p.title||'Photo')}" loading="lazy"></a><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">${formatViews(p.views||0)} views · ${formatUploadAge(p.created_at)}</div></div></article>`).join('')||'<p class="muted">No published photos yet.</p>';
+  if(pager){let html=`<button class="btn" ${photoPage===1?'disabled':''} onclick="window.vexaPhotoPage(${photoPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===photoPage?'primary':''}" onclick="window.vexaPhotoPage(${n})">${n}</button>`;html+=`<button class="btn" ${photoPage===total?'disabled':''} onclick="window.vexaPhotoPage(${photoPage+1})">Next</button>`;pager.innerHTML=html;}
+}
+window.vexaPhotoPage=n=>{photoPage=Math.max(1,n);renderPhotoPage();window.scrollTo({top:0,behavior:'smooth'});};
 
 async function renderVideoPage(){
   const box=document.getElementById('videoPage'),id=new URLSearchParams(location.search).get('id');let v=VEXA_LOCAL.find(x=>String(x.id)===String(id));
@@ -283,6 +324,60 @@ async function loadRelated(v){
   const grid=document.getElementById('relatedGrid'),more=document.getElementById('moreRelated');if(!grid)return;let list=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('vexa_published_videos').select('*').neq('id',v.id).limit(300);if(data)list=data.map(normalizeVideo);}if(!list.length)list=allVideos.filter(x=>String(x.id)!==String(v.id));
   const same=list.filter(x=>(v.tags||[]).some(t=>(x.tags||[]).includes(t))||x.category===v.category);const rest=list.filter(x=>!same.includes(x));relatedPool=[...same,...rest];relatedShown=0;const render=()=>{grid.innerHTML=relatedPool.slice(0,relatedShown).map(createCard).join('')||'<p class="muted">No related videos yet.</p>';setupPreviews();more.hidden=relatedShown>=relatedPool.length;};relatedShown=Math.min(8,relatedPool.length);render();more.onclick=()=>{relatedShown=Math.min(relatedShown+8,relatedPool.length);render();};
 }
+async function loadCommunity(){
+  const wrap=document.getElementById('communityProfiles');if(!wrap)return;
+  const countrySel=document.getElementById('communityCountry'),sortSel=document.getElementById('communitySort'),tagSel=document.getElementById('communityTag');
+  let creators=[];
+  if(window.supabaseClient){
+    const {data,error}=await window.supabaseClient.rpc('vexa_public_creators');
+    if(!error&&Array.isArray(data)) creators=data;
+  }
+  if(!creators.length){
+    wrap.innerHTML='<p class="muted">No public creator profiles yet.</p>';return;
+  }
+  if(window.supabaseClient){
+    creators=await Promise.all(creators.map(async c=>{
+      const [v,p]=await Promise.all([
+        window.supabaseClient.from('vexa_published_videos').select('id,title,thumbnail_url,created_at').eq('uploader_id',c.id).order('created_at',{ascending:false}).limit(4),
+        window.supabaseClient.from('vexa_published_photos').select('id,title,image_url,thumbnail_url,created_at').eq('uploader_id',c.id).order('created_at',{ascending:false}).limit(4)
+      ]);
+      const preview=[...(v.data||[]).map(x=>({...x,type:'video'})),...(p.data||[]).map(x=>({...x,type:'photo'}))].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+      c.preview_posts=preview.slice(0,4);return c;
+    }));
+  }
+  const countries=[...new Set(creators.map(x=>x.country).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  countrySel.innerHTML='<option value="">Country</option>'+countries.map(c=>`<option value="${vexaEsc(c)}">${vexaEsc(c)}</option>`).join('');
+  const tags=[...new Set(creators.flatMap(x=>Array.isArray(x.tags)?x.tags:[]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  tagSel.innerHTML='<option value="">Tags</option>'+tags.map(t=>`<option value="${vexaEsc(t)}">${vexaEsc(t)}</option>`).join('');
+  const render=()=>{
+    let list=creators.slice();
+    if(countrySel.value)list=list.filter(x=>String(x.country||'')===countrySel.value);
+    if(tagSel.value)list=list.filter(x=>(x.tags||[]).includes(tagSel.value));
+    if(sortSel.value==='recent')list.sort((a,b)=>new Date(b.latest_post||0)-new Date(a.latest_post||0));
+    else if(sortSel.value==='posts')list.sort((a,b)=>Number(b.posts||0)-Number(a.posts||0));
+    else list.sort((a,b)=>Number(b.views||0)-Number(a.views||0));
+    wrap.innerHTML=list.map(c=>{
+      const name=c.display_name||c.username||'Creator';
+      const avatar=c.avatar_url?`<img src="${vexaEsc(c.avatar_url)}" alt="" loading="lazy">`:`<span>${vexaEsc(name.charAt(0).toUpperCase())}</span>`;
+      const items=(c.preview_posts||[]).slice(0,4);
+      return `<article class="community-profile-card"><a class="community-profile-head" href="creator.html?id=${encodeURIComponent(c.id)}"><div class="community-avatar">${avatar}</div><strong>${vexaEsc(name)}</strong><span class="community-post-count">${Number(c.posts||0).toLocaleString()} posts</span></a>${c.bio?`<p class="community-bio">${vexaEsc(c.bio)}</p>`:''}<div class="community-preview-grid">${items.map(item=>`<a href="${item.type==='video'?'video.html?id='+encodeURIComponent(item.id):vexaEsc(item.image_url||'')}" ${item.type==='photo'?'target="_blank" rel="noopener"':''}><img src="${vexaEsc(item.thumbnail_url||item.image_url||'')}" alt="" loading="lazy"><span>${vexaEsc(item.title||'')}</span></a>`).join('')}</div></article>`;
+    }).join('')||'<p class="muted">No creators match these filters.</p>';
+  };
+  countrySel.onchange=render;sortSel.onchange=render;tagSel.onchange=render;render();
+}
+
+function setupAdultAgreement(){
+  const path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
+  const excluded=['login.html','signup.html','forgot-password.html','reset-password.html','admin-login.html','admin.html','privacy.html','terms.html','dmca.html'];
+  if(excluded.includes(path)||document.getElementById('adultAgreement'))return;
+  if(localStorage.getItem('vexa-adult-agreement')==='accepted')return;
+  const modal=document.createElement('div');modal.id='adultAgreement';modal.className='adult-gate';modal.innerHTML=`<div class="adult-gate-card" role="dialog" aria-modal="true" aria-labelledby="adultGateTitle"><div class="adult-gate-logo">Vexa</div><h2 id="adultGateTitle">18+ Agreement</h2><p><u>Vexa</u> is intended for an adult audience only (18+). By using it, you accept the <u>conditions</u>.</p><h3>Please choose 1 or more:</h3><div class="adult-categories"><label><input type="checkbox" value="straight"><span>⚥</span><b>Straight</b></label><label><input type="checkbox" value="men"><span>♂</span><b>Only Men</b></label><label><input type="checkbox" value="girls"><span>♀</span><b>Only Girls</b></label><label><input type="checkbox" value="trans"><span>⚧</span><b>Trans</b></label></div><button id="adultEnter" class="adult-enter" disabled>ENTER</button></div>`;
+  document.body.appendChild(modal);
+  const enter=modal.querySelector('#adultEnter');
+  modal.querySelectorAll('input[type=checkbox]').forEach(x=>x.onchange=()=>{enter.disabled=!modal.querySelector('input:checked');});
+  enter.onclick=()=>{localStorage.setItem('vexa-adult-agreement','accepted');localStorage.setItem('vexa-adult-categories',JSON.stringify([...modal.querySelectorAll('input:checked')].map(x=>x.value)));modal.remove();};
+}
+
 async function loadTags(){
   const cloud=document.getElementById('tagCloud');let tags=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('vexa_published_videos').select('tags').limit(500);if(data)data.forEach(v=>(Array.isArray(v.tags)?v.tags:[]).forEach(t=>tags.push(String(t))));}if(!tags.length)VEXA_LOCAL.forEach(v=>(v.tags||[]).forEach(t=>tags.push(String(t))));const counts={};tags.forEach(t=>counts[t]=(counts[t]||0)+1);const unique=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));const selected=new URLSearchParams(location.search).get('tag');cloud.innerHTML=unique.map(t=>`<a class="tag-link" href="videos.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)} <span class="muted">${counts[t]}</span></a>`).join('')||'<p class="muted">No tags yet.</p>';if(selected)document.querySelectorAll('.tag-link').forEach(a=>{if(a.textContent.toLowerCase().includes(selected.toLowerCase()))a.style.background='var(--accent)';});
 }

@@ -14,7 +14,7 @@
 <a class="brand" href="index.html"><img class="brand-logo" alt="" hidden><span class="brand-text">Vexa</span></a>
 <div class="header-actions">
 <a class="header-account-btn" id="accountBtn" href="login.html" title="Log in" aria-label="Log in"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg></a>
-<a class="header-settings-btn icon-btn" href="privacy.html" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2.1M12 18.9V21M3 12h2.1M18.9 12H21M5.64 5.64l1.48 1.48M16.88 16.88l1.48 1.48M18.36 5.64l-1.48 1.48M7.12 16.88l-1.48 1.48"></path><circle cx="12" cy="12" r="3.4"></circle><path d="M9.6 4.15a8.6 8.6 0 0 1 4.8 0l.8 1.83a8.8 8.8 0 0 1 2.02 1.17l1.94-.32a8.7 8.7 0 0 1 2.4 4.18l-1.37 1.4a8.3 8.3 0 0 1 0 2.34l1.37 1.4a8.7 8.7 0 0 1-2.4 4.18l-1.94-.32a8.8 8.8 0 0 1-2.02 1.17l-.8 1.83a8.6 8.6 0 0 1-4.8 0l-.8-1.83a8.8 8.8 0 0 1-2.02-1.17l-1.94.32a8.7 8.7 0 0 1-2.4-4.18l1.37-1.4a8.3 8.3 0 0 1 0-2.34l-1.37-1.4a8.7 8.7 0 0 1 2.4-4.18l1.94.32a8.8 8.8 0 0 1 2.02-1.17l.8-1.83Z"></path></svg></a>
+
 </div></div></header>
 <div class="layout">
 <aside class="sidebar">
@@ -29,12 +29,10 @@
 <main class="main auth-wrap">
 <form class="form" id="adminLoginForm">
 <h1>Admin Login</h1>
-<p class="muted">Sign in with the account that has administrator access.</p>
-<div class="field"><label>Email</label><input id="adminEmail" type="email" autocomplete="username" required></div>
-<div class="field"><label>Password</label><input id="adminPassword" type="password" autocomplete="current-password" required></div>
-<button class="btn primary" type="submit" id="adminLoginBtn">Log in</button>
+<p class="muted">Sign in with your authorized GitHub account to access the Vexa admin portal.</p>
+<button class="btn primary github-login-btn" type="button" id="githubAdminLogin">Continue with GitHub</button>
 <p id="adminLoginMsg" class="muted" role="status"></p>
-<button class="btn" type="button" id="switchAdminAccount" hidden>Sign out and use another account</button>
+<button class="btn" type="button" id="switchAdminAccount" hidden>Sign out and use another GitHub account</button>
 <p><a href="login.html">Go to regular user login</a></p>
 </form>
 </main>
@@ -48,29 +46,30 @@
 <script src="app.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-  const client=window.supabaseClient, form=document.getElementById('adminLoginForm'), msg=document.getElementById('adminLoginMsg');
+  const client=window.supabaseClient, msg=document.getElementById('adminLoginMsg'), btn=document.getElementById('githubAdminLogin'), switchBtn=document.getElementById('switchAdminAccount');
   if(!client){msg.textContent='Supabase is not connected.';return;}
-  const params=new URLSearchParams(location.search);
   const next='admin.html';
-  const switchBtn=document.getElementById('switchAdminAccount');
-  switchBtn.onclick=async()=>{await client.auth.signOut();location.reload();};
-  const {data:{session}}=await client.auth.getSession();
-  if(session?.user){
+  const checkAdmin=async()=>{
     const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
-    if(!error && isAdmin===true){location.replace(next);return;}
-    if(params.get('switch')==='1') await client.auth.signOut();
-    else msg.textContent='This signed-in account is not an administrator. Sign out and use your admin account.';if(switchBtn)switchBtn.hidden=false;
-  }
-  form.onsubmit=async e=>{
-    e.preventDefault();msg.textContent='Signing in…';
-    const email=document.getElementById('adminEmail').value.trim(), password=document.getElementById('adminPassword').value;
-    const {error}=await client.auth.signInWithPassword({email,password});
-    if(error){msg.textContent=error.message;return;}
-    const {data:isAdmin,error:adminError}=await client.rpc('is_vexa_admin');
-    if(adminError){await client.auth.signOut();msg.textContent='Admin access could not be verified: '+adminError.message;return;}
-    if(isAdmin!==true){await client.auth.signOut();msg.textContent='This account is a normal user account, not an admin account.';return;}
-    msg.textContent='Admin verified. Opening portal…';location.replace(next);
+    if(error) return {ok:false,error};
+    return {ok:isAdmin===true,error:null};
   };
+  const {data:{session}}=await client.auth.getSession();
+  const params=new URLSearchParams(location.search);
+  if(params.get('error_description')) msg.textContent='GitHub sign-in failed: '+params.get('error_description').replace(/\+/g,' ');
+  if(session?.user){
+    const result=await checkAdmin();
+    if(result.ok){location.replace(next);return;}
+    msg.textContent='This GitHub account is signed in, but it is not authorized as a Vexa administrator. Use the GitHub account whose email is Gnballer96@gmail.com.';
+    switchBtn.hidden=false;
+  }
+  btn.onclick=async()=>{
+    msg.textContent='Opening GitHub…';btn.disabled=true;
+    const redirectTo=new URL('admin-login.html',window.location.href).href;
+    const {error}=await client.auth.signInWithOAuth({provider:'github',options:{redirectTo}});
+    if(error){msg.textContent='GitHub sign-in could not start: '+error.message+'. Make sure GitHub is enabled in Supabase Authentication → Providers and this Admin Login URL is in Supabase Authentication → URL Configuration → Redirect URLs.';btn.disabled=false;}
+  };
+  switchBtn.onclick=async()=>{await client.auth.signOut();location.reload();};
 });
 </script>
 </body>
