@@ -13,6 +13,3 @@ A responsive video website frontend with Supabase Auth + database integration.
 2. Edit `supabase-config.js` and paste your Supabase Project URL and Publishable key.
 3. Enable GitHub Pages for the repository.
 4. In Supabase Auth, add your GitHub Pages URL to the allowed redirect URLs.
-
-
-Latest UI update: sidebar navigation is text-only; Upload matches other navigation links; guest comments are supported through moderated anonymous comments; mobile catalog/search is compact and borderless.
