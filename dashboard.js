@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(!client){box.innerHTML='<div class="form"><h1>My Dashboard</h1><p class="muted">Supabase is not connected.</p></div>';return;}
   const {data}=await client.auth.getUser(); user=data.user;
   if(!user){location.href='login.html';return;}
+  const creatorCheck=await client.rpc('is_vexa_creator');
+  if(creatorCheck.error||creatorCheck.data!==true){location.replace('dashboard.html');return;}
   await load();
 });
 function setupTheme(){const saved=localStorage.getItem('vexa-theme');document.documentElement.classList.toggle('light',saved==='light');const b=document.getElementById('themeBtn');if(b)b.onclick=()=>{const light=!document.documentElement.classList.contains('light');document.documentElement.classList.toggle('light',light);localStorage.setItem('vexa-theme',light?'light':'dark');};}
@@ -18,14 +20,15 @@ async function load(){
     client.from('profiles').select('username,display_name').eq('id',user.id).maybeSingle()
   ]);
   videos=vr.data||[]; photos=pr.data||[];
-  render(profile.data);
+  const statsResult=await client.rpc('vexa_creator_stats');
+  render(profile.data, statsResult.error?{}:(statsResult.data||{}));
 }
 function statusLabel(s){return s||'draft';}
-function render(profile){
+function render(profile,stats={}){
   const name=profile?.display_name||profile?.username||user.email?.split('@')[0]||'User';
   const all=[...videos.map(v=>({...v,_type:'video'})),...photos.map(p=>({...p,_type:'photo'}))];
-  document.getElementById('dashboardPage').innerHTML=`<div class="section-title"><div><h1>My Dashboard</h1><div class="muted">Manage content uploaded by ${esc(name)}</div></div><a class="btn primary" href="upload.html">Upload content</a></div>
-  <div class="stat-grid"><div class="stat-card"><div class="num">${videos.length}</div><div class="lbl">Videos</div></div><div class="stat-card"><div class="num">${photos.length}</div><div class="lbl">Photos</div></div><div class="stat-card"><div class="num">${all.filter(x=>x.status==='pending').length}</div><div class="lbl">Pending</div></div><div class="stat-card"><div class="num">${all.filter(x=>x.status==='published').length}</div><div class="lbl">Published</div></div></div>
+  document.getElementById('dashboardPage').innerHTML=`<div class="section-title"><div><h1>Creator Dashboard</h1><div class="muted">Manage your creator content, approvals and publishing status.</div></div><a class="btn primary" href="upload.html">Upload content</a></div>
+  <div class="stat-grid"><div class="stat-card"><div class="num">${videos.length}</div><div class="lbl">Videos</div></div><div class="stat-card"><div class="num">${photos.length}</div><div class="lbl">Photos</div></div><div class="stat-card"><div class="num">${all.filter(x=>x.status==='pending').length}</div><div class="lbl">Pending</div></div><div class="stat-card"><div class="num">${all.filter(x=>x.status==='published').length}</div><div class="lbl">Published</div></div><div class="stat-card"><div class="num">${Number(stats.views||0).toLocaleString()}</div><div class="lbl">Content Views</div></div><div class="stat-card"><div class="num">${Number(stats.followers||0).toLocaleString()}</div><div class="lbl">Followers</div></div><div class="stat-card"><div class="num">${Number(stats.profile_views||0).toLocaleString()}</div><div class="lbl">Profile Views</div></div><div class="stat-card"><div class="num">${Number(stats.saves||0).toLocaleString()}</div><div class="lbl">Saves</div></div></div>
   <div class="dashboard-toolbar"><button class="btn primary" data-filter="all">All</button><button class="btn" data-filter="draft">Draft</button><button class="btn" data-filter="pending">Pending Approval</button><button class="btn" data-filter="published">Published</button><button class="btn" data-filter="rejected">Rejected</button><button class="btn" data-filter="archived">Archived</button></div>
   <div id="myContent" class="dashboard-list"></div>`;
   document.querySelectorAll('.dashboard-toolbar [data-filter]').forEach(b=>b.onclick=()=>renderContent(b.dataset.filter));

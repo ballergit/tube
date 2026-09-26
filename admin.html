@@ -13,7 +13,7 @@
 <div class="layout">
 <aside class="sidebar"><a class="side-link" href="index.html">Home</a><a class="side-link" href="videos.html">Videos</a><a class="side-link" href="photos.html">Photos</a><a class="side-link" href="categories.html">Categories</a><a class="side-link" href="tags.html">Tags</a><a class="side-link" href="community.html">Community</a><a class="side-link" href="upload.html">UPLOAD</a></aside>
 <main class="main">
-<div id="gate"><p class="muted">Loading admin portal…</p></div>
+<div id="gate"><form class="form" id="adminGateForm" style="max-width:520px"><h1>Admin Login</h1><p class="muted">Sign in with the administrator account to open the admin portal.</p><div class="field"><label>Email</label><input id="gateEmail" type="email" autocomplete="username" required></div><div class="field"><label>Password</label><input id="gatePassword" type="password" autocomplete="current-password" required></div><button class="btn primary" type="submit" id="gateLoginBtn">Log in</button><p id="gateMsg" class="muted" role="status"></p><p><a href="login.html">Regular user login</a></p></form></div>
 <div id="adminApp" hidden>
 <div class="section-title"><h1>Admin</h1><button class="btn" id="refreshAll">Refresh</button></div>
 <nav class="admin-tabs">

@@ -45,3 +45,11 @@ where p.id = u.id
 ```
 
 The browser never receives the service-role key. Admin access is still checked through the database function `is_vexa_admin()`.
+
+
+## 2026-09-26 checkpoint changes
+- Signed-in account dropdown restored to the original account-style menu with Dashboard, Saved, Following, Notifications, Settings, Security & Privacy, Dark Mode, Language and Logout. Creator Dashboard/My Content are shown only to users granted creator access.
+- Regular users use My Account; creator content management is separated into Creator Dashboard.
+- Admin page now presents an admin login gate directly instead of an endless loading state; successful admin authentication opens the portal.
+- Added creator access controls and server-side creator check helpers.
+- Video cards and video detail pages show how long ago each video was uploaded.

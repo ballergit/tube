@@ -11,27 +11,34 @@ let homepageSections=[
 document.addEventListener('DOMContentLoaded',async()=>{
   setupTheme();
   const gate=document.getElementById('gate');
-  if(!client){return gateMsg('Supabase is not connected.');}
+  if(!client)return gateMsg('Supabase is not connected.');
   try{
     const {data:{session},error:sessionError}=await client.auth.getSession();
     if(sessionError)throw sessionError;
-    if(!session?.user){
-      location.replace('admin-login.html?next=admin.html');
-      return;
+    if(session?.user){
+      const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
+      if(!error&&isAdmin===true){return openAdminPortal(session.user);}
     }
-    currentUser=session.user;
-    const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
-    if(error)throw error;
-    if(isAdmin!==true){
-      gateMsg('This account does not have administrator access.');
-      gate.insertAdjacentHTML('beforeend','<div class="row-actions" style="margin-top:12px"><a class="btn primary" href="admin-login.html?switch=1">Use admin account</a><button class="btn" id="adminLogoutBtn">Log out</button></div>');
-      document.getElementById('adminLogoutBtn').onclick=async()=>{await client.auth.signOut();location.replace('admin-login.html?next=admin.html');};
-      return;
-    }
-    gate.hidden=true;document.getElementById('adminApp').hidden=false;
-    setupTabs();setupActions();await loadEverything();
-  }catch(e){console.error(e);gateMsg('Admin access could not be verified: '+(e?.message||'Unknown error'));}
+    setupAdminGateLogin();
+  }catch(e){console.error(e);setupAdminGateLogin();}
 });
+function setupAdminGateLogin(){
+  const form=document.getElementById('adminGateForm'),msg=document.getElementById('gateMsg');if(!form)return;
+  form.onsubmit=async e=>{
+    e.preventDefault();msg.textContent='Signing in…';
+    const email=document.getElementById('gateEmail').value.trim(),password=document.getElementById('gatePassword').value;
+    const {error}=await client.auth.signInWithPassword({email,password});
+    if(error){msg.textContent=error.message;return;}
+    const {data:isAdmin,error:adminError}=await client.rpc('is_vexa_admin');
+    if(adminError||isAdmin!==true){await client.auth.signOut();msg.textContent=adminError?`Admin access could not be verified: ${adminError.message}`:'This account is not an administrator.';return;}
+    msg.textContent='Admin verified. Opening portal…';await openAdminPortal((await client.auth.getUser()).data.user);
+  };
+}
+async function openAdminPortal(user){
+  currentUser=user;
+  const gate=document.getElementById('gate');gate.hidden=true;document.getElementById('adminApp').hidden=false;
+  setupTabs();setupActions();await loadEverything();
+}
 function gateMsg(msg){const gate=document.getElementById('gate');if(gate)gate.innerHTML=`<p class="muted">${esc(msg)}</p>`;}
 function setupTheme(){const saved=localStorage.getItem('vexa-theme');document.documentElement.classList.toggle('light',saved==='light');const b=document.getElementById('themeBtn');if(b)b.onclick=()=>{const light=!document.documentElement.classList.contains('light');document.documentElement.classList.toggle('light',light);localStorage.setItem('vexa-theme',light?'light':'dark');};}
 function setupTabs(){document.querySelectorAll('.tab-btn').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById(`panel-${btn.dataset.tab}`)?.classList.add('active');});}
@@ -82,8 +89,9 @@ async function searchFeaturedPicker(){const q=document.getElementById('featuredP
 window.setFeatured=async(id,val)=>{const {error}=await client.from('videos').update({featured:val}).eq('id',id);if(error)alert(error.message);else{await loadVideos();loadFeaturedTrending();}};window.setTrending=async(id,val)=>{const {error}=await client.from('videos').update({trending:val}).eq('id',id);if(error)alert(error.message);else{await loadVideos();loadFeaturedTrending();}};
 
 async function loadUsers(){const {data,error}=await client.from('profiles').select('*').order('created_at',{ascending:false});if(error){console.error(error);return;}allUsers=data||[];filterUsers();}
-function filterUsers(){const q=document.getElementById('userSearch').value.toLowerCase();const rows=allUsers.filter(u=>(`${u.display_name||''} ${u.username||''}`).toLowerCase().includes(q));document.getElementById('userTableWrap').innerHTML=rows.length?`<table class="admin-table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead><tbody>${rows.map(u=>`<tr><td>${esc(u.display_name||'')}</td><td>${esc(u.username||'')}</td><td><span class="badge ${u.role==='admin'?'admin':''}">${esc(u.role)}</span></td><td>${formatDate(u.created_at)}</td><td><button class="btn" onclick="changeRole('${esc(u.id)}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Demote':'Promote'}</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No users found.</p>';}
+function filterUsers(){const q=document.getElementById('userSearch').value.toLowerCase();const rows=allUsers.filter(u=>(`${u.display_name||''} ${u.username||''}`).toLowerCase().includes(q));document.getElementById('userTableWrap').innerHTML=rows.length?`<table class="admin-table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Creator</th><th>Joined</th><th>Actions</th></tr></thead><tbody>${rows.map(u=>`<tr><td>${esc(u.display_name||'')}</td><td>${esc(u.username||'')}</td><td><span class="badge ${u.role==='admin'?'admin':''}">${esc(u.role)}</span></td><td>${u.is_creator?'Yes':'No'}</td><td>${formatDate(u.created_at)}</td><td><div class="row-actions"><button class="btn" onclick="changeRole('${esc(u.id)}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Demote':'Promote'}</button><button class="btn" onclick="toggleCreator('${esc(u.id)}',${u.is_creator?'false':'true'})">${u.is_creator?'Remove Creator':'Make Creator'}</button></div></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No users found.</p>';}
 window.changeRole=async(id,newRole)=>{if(!confirm(`Change role to ${newRole}?`))return;const {error}=await client.from('profiles').update({role:newRole}).eq('id',id);if(error)alert(error.message);else loadUsers();};
+window.toggleCreator=async(id,val)=>{if(!confirm(val?'Grant creator access to this user?':'Remove creator access from this user?'))return;const {error}=await client.rpc('vexa_set_creator',{p_user_id:id,p_is_creator:val});if(error)alert(error.message);else loadUsers();};
 
 async function loadComments(){const {data,error}=await client.from('video_comments').select('*').order('created_at',{ascending:false});if(error){console.error(error);return;}allComments=data||[];filterComments();}
 function filterComments(){const status=document.getElementById('commentStatusFilter').value;const rows=status?allComments.filter(c=>c.status===status):allComments;document.getElementById('commentTableWrap').innerHTML=rows.length?`<table class="admin-table"><thead><tr><th>Body</th><th>By</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>${rows.map(c=>`<tr><td style="max-width:300px;white-space:pre-wrap">${esc(c.body)}</td><td>${esc(c.guest_name||c.user_id||'')}</td><td><span class="badge ${esc(c.status)}">${esc(c.status)}</span></td><td>${formatDate(c.created_at)}</td><td><div class="row-actions"><button class="btn" onclick="moderateComment(${c.id},'approved')">Approve</button><button class="btn danger" onclick="moderateComment(${c.id},'rejected')">Reject</button><button class="btn danger" onclick="deleteComment(${c.id})">Delete</button></div></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No comments.</p>';}

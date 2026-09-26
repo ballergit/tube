@@ -39,30 +39,100 @@ function updateAuthUI(user){
   const path=location.pathname.split('/').pop()||'index.html';
   if(path==='login.html'||path==='signup.html'||path==='admin-login.html'||path==='admin.html')return;
   const account=document.getElementById('accountBtn');
-  if(account){ account.textContent=user?'Profile':'Login'; account.title=user?'Account':'Log in'; account.href=user?'creator.html?id='+encodeURIComponent(user.id):'login.html'; }
-  const nameEl=document.getElementById('accountMenuUser');
-  if(nameEl) nameEl.textContent=user?(user.user_metadata?.username||user.email||'Account'):'Guest';
-  const dash=document.getElementById('accountDashboard'); if(dash) dash.hidden=!user;
-  const logout=document.getElementById('accountLogout'); if(logout) logout.hidden=!user;
+  const menu=document.getElementById('accountMenu');
+  const container=document.getElementById('profileDropdown');
+  const nameEl=document.getElementById('summaryName');
+  const emailEl=document.getElementById('summaryEmail');
+  const triggerName=document.getElementById('profileUserName');
+  const avatarEl=document.querySelector('#profileDropdown .avatar');
+  const profileLink=document.getElementById('accountProfile');
+  const creatorDashboardLink=document.getElementById('creatorDashboardLink');
+  const myContentLink=document.getElementById('myContentLink');
+  const toggle=document.getElementById('themeToggle');
+
+  if(account){
+    if(user){account.hidden=true;account.textContent='';account.href='login.html';}
+    else{account.hidden=false;account.textContent='Login';account.title='Log in';account.href='login.html';}
+  }
+  if(container){container.hidden=!user;if(!user)container.classList.remove('active');}
+  if(menu)menu.hidden=!user;
+
+  const displayName=user?(user.user_metadata?.username||user.user_metadata?.display_name||user.email?.split('@')[0]||'Account'):'Guest';
+  if(triggerName)triggerName.textContent=displayName;
+  if(nameEl)nameEl.textContent=displayName;
+  if(emailEl)emailEl.textContent=user?.email||'';
+  if(avatarEl){
+    avatarEl.alt=user?`${displayName} profile`:'User Profile';
+    avatarEl.src=user?.user_metadata?.avatar_url||user?.user_metadata?.picture||`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=2a2a2a&color=fff&size=72`;
+  }
+  if(profileLink&&user)profileLink.href='creator.html?id='+encodeURIComponent(user.id);
+  if(toggle)toggle.checked=document.documentElement.classList.contains('light')===false;
+
+  if(user&&window.supabaseClient){
+    window.supabaseClient.rpc('is_vexa_creator').then(({data,error})=>{
+      const isCreator=!error&&data===true;
+      if(creatorDashboardLink)creatorDashboardLink.hidden=!isCreator;
+      if(myContentLink){myContentLink.hidden=!isCreator;if(isCreator)myContentLink.href='creator-dashboard.html#content';}
+    });
+  }else{
+    if(creatorDashboardLink)creatorDashboardLink.hidden=true;
+    if(myContentLink)myContentLink.hidden=true;
+  }
+
   document.querySelectorAll('[data-auth-status]').forEach(el=>el.textContent=user?`Signed in as ${user.email||'user'}`:'Not signed in');
-  if(logout) logout.onclick=async()=>{const {error}=await window.supabaseClient.auth.signOut();if(error)alert(error.message);else location.href='index.html';};
+  const logout=document.getElementById('accountLogout');
+  if(logout)logout.hidden=!user;
+  if(logout)logout.onclick=async(e)=>{e.preventDefault();const {error}=await window.supabaseClient.auth.signOut();if(error)alert(error.message);else location.href='index.html';};
   syncUserPreferences(user);
 }
 
 function setupAccountMenu(){
-  const actions=document.querySelector('.header-actions'); if(!actions)return;
+  const actions=document.querySelector('.header-actions');if(!actions)return;
   let account=document.getElementById('accountBtn');
   if(!account){account=document.createElement('a');account.id='accountBtn';account.className='account-btn';account.href='login.html';account.textContent='Login';actions.appendChild(account);}
-  let menu=document.getElementById('accountMenu');
-  if(!menu){menu=document.createElement('div');menu.id='accountMenu';menu.className='account-menu';menu.innerHTML=`<div class="account-menu-user" id="accountMenuUser">Guest</div><a href="creator.html" id="accountProfile">Profile</a><a href="dashboard.html" id="accountDashboard">Dashboard</a><a href="dashboard.html#content">My Content</a><a href="dashboard.html#saved">Saved</a><a href="community.html">Following</a><a href="dashboard.html#notifications">Notifications</a><a href="dashboard.html#settings">Settings</a><div class="menu-separator"></div><div class="menu-label">Appearance</div><div class="menu-row"><button type="button" class="menu-choice" id="darkModeBtn">Dark</button><button type="button" class="menu-choice" id="lightModeBtn">Light</button></div><div class="menu-label">Language</div><select id="menuLanguage"><option value="EN">English</option><option value="FR">Français</option><option value="ES">Español</option></select><button type="button" class="menu-logout" id="accountLogout">Logout</button>`;actions.appendChild(menu);}
-  account.onclick=(e)=>{e.preventDefault();menu.classList.toggle('open');};
-  document.addEventListener('click',e=>{if(!actions.contains(e.target))menu.classList.remove('open');},{passive:true});
-  document.getElementById('darkModeBtn').onclick=()=>setTheme('dark');
-  document.getElementById('lightModeBtn').onclick=()=>setTheme('light');
-  document.getElementById('menuLanguage').onchange=e=>setLanguage(e.target.value);
+  let container=document.getElementById('profileDropdown');
+  if(!container){
+    container=document.createElement('div');container.id='profileDropdown';container.className='profile-container';container.hidden=true;
+    container.innerHTML=`
+      <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false" onclick="toggleDropdown(event)">
+        <span class="user-name" id="profileUserName">Account</span>
+        <img src="" alt="User Profile" class="avatar">
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="dropdown-menu" id="accountMenu">
+        <div class="user-summary"><p class="summary-name" id="summaryName">Account</p><p class="summary-email" id="summaryEmail"></p></div>
+        <ul class="menu-links">
+          <li><a href="creator.html" id="accountProfile">My Profile</a></li>
+          <li><a href="dashboard.html">Dashboard</a></li>
+          <li><a href="creator-dashboard.html" id="creatorDashboardLink" hidden>Creator Dashboard</a></li>
+          <li><a href="creator-dashboard.html#content" id="myContentLink" hidden>My Content</a></li>
+          <li><a href="dashboard.html#saved">Saved</a></li>
+          <li><a href="dashboard.html#following">Following</a></li>
+          <li><a href="dashboard.html#notifications">Notifications</a></li>
+          <li><a href="dashboard.html#settings">Account Settings</a></li>
+          <li><a href="privacy.html">Security &amp; Privacy</a></li>
+          <li class="toggle-item"><span>Dark Mode</span><label class="switch"><input type="checkbox" id="themeToggle" aria-label="Dark Mode"><span class="slider"></span></label></li>
+          <li class="menu-language-item"><label for="menuLanguage">Language</label><select id="menuLanguage"><option value="EN">English</option><option value="FR">Français</option><option value="ES">Español</option></select></li>
+        </ul>
+        <div class="divider"></div><div class="logout-section"><a href="#logout" class="logout-btn" id="accountLogout">Log Out</a></div>
+      </div>`;
+    actions.appendChild(container);
+  }
+  const trigger=container.querySelector('.profile-trigger');
+  const themeToggle=document.getElementById('themeToggle');
+  const language=document.getElementById('menuLanguage');
+  if(themeToggle)themeToggle.onchange=()=>setTheme(themeToggle.checked?'dark':'light');
+  if(language)language.onchange=e=>setLanguage(e.target.value);
+  document.addEventListener('click',e=>{if(!container.contains(e.target)){container.classList.remove('active');if(trigger)trigger.setAttribute('aria-expanded','false');}},{passive:true});
   applySavedPreferences();
 }
-function setTheme(theme){document.documentElement.classList.toggle('light',theme==='light');localStorage.setItem('vexa-theme',theme);syncPreference('theme',theme);}
+
+function toggleDropdown(event){
+  if(event)event.stopPropagation();
+  const container=document.getElementById('profileDropdown');if(!container||container.hidden)return;
+  const trigger=container.querySelector('.profile-trigger');const isActive=container.classList.toggle('active');if(trigger)trigger.setAttribute('aria-expanded',String(isActive));
+}
+
 function setupTheme(){applySavedPreferences();}
 function applySavedPreferences(){const theme=localStorage.getItem('vexa-theme')||'dark';document.documentElement.classList.toggle('light',theme==='light');const lang=localStorage.getItem('vexa-language')||'EN';const s=document.getElementById('menuLanguage');if(s)s.value=lang;translatePage(lang);}
 function setLanguage(lang){localStorage.setItem('vexa-language',lang);const s=document.getElementById('menuLanguage');if(s)s.value=lang;translatePage(lang);syncPreference('language',lang);}
@@ -107,6 +177,8 @@ async function loadListing(){
   renderGrid(allVideos);
 }
 function normalizeVideo(v){return {...v,thumbnail:v.thumbnail_url||v.thumbnail||'https://placehold.co/640x360/111/fff?text=Vexa',video:v.video_url||v.video,preview:v.preview_url||v.preview,download:v.video_url||v.download,category:v.category||'Video',tags:Array.isArray(v.tags)?v.tags:[],uploader_id:v.uploader_id||v.user_id||v.created_by,uploader_name:v.uploader_name||v.creator_name||v.username||'Vexa Creator',duration:v.duration||v.duration_text||'',quality:v.quality||v.resolution||''};}
+function formatUploadAge(date){if(!date)return'Upload date unavailable';const t=new Date(date).getTime();if(!Number.isFinite(t))return'Upload date unavailable';let sec=Math.max(0,Math.floor((Date.now()-t)/1000));if(sec<60)return'Uploaded just now';const min=Math.floor(sec/60);if(min<60)return`Uploaded ${min} minute${min===1?'':'s'} ago`;const hr=Math.floor(min/60);if(hr<24)return`Uploaded ${hr} hour${hr===1?'':'s'} ago`;const day=Math.floor(hr/24);if(day<30)return`Uploaded ${day} day${day===1?'':'s'} ago`;const month=Math.floor(day/30);if(month<12)return`Uploaded ${month} month${month===1?'':'s'} ago`;const year=Math.floor(month/12);return`Uploaded ${year} year${year===1?'':'s'} ago`;}
+
 function formatViews(n){return Number(n||0).toLocaleString();}
 function renderGrid(list=allVideos){
   currentList=list;const grid=document.getElementById('videoGrid');if(!grid)return;
@@ -114,7 +186,7 @@ function renderGrid(list=allVideos){
   grid.innerHTML=list.slice(start,start+PAGE_SIZE).map(createCard).join('')||`<p class="muted">No videos found.</p>`;setupPreviews();renderPagination(total);
 }
 function createCard(v){
-  const x=normalizeVideo(v);return `<article class="card video-card" data-id="${vexaEsc(x.id)}"><a class="video-link" href="video.html?id=${encodeURIComponent(x.id)}"><div class="thumb preview-wrap"><img class="thumb-img" src="${vexaEsc(x.thumbnail)}" alt="" loading="lazy">${x.preview?`<video class="preview-video" muted playsinline preload="none" src="${vexaEsc(x.preview)}"></video>`:''}${x.duration?`<span class="duration-badge">${vexaEsc(x.duration)}</span>`:''}${x.quality?`<span class="quality-badge">${vexaEsc(x.quality)}</span>`:''}</div><div class="card-body"><h3>${vexaEsc(x.title)}</h3><div class="card-meta">${formatViews(x.views||0)} views · <span class="card-likes">${formatViews(x.likes||0)} likes</span></div></div></a></article>`;
+  const x=normalizeVideo(v);return `<article class="card video-card" data-id="${vexaEsc(x.id)}"><a class="video-link" href="video.html?id=${encodeURIComponent(x.id)}"><div class="thumb preview-wrap"><img class="thumb-img" src="${vexaEsc(x.thumbnail)}" alt="" loading="lazy">${x.preview?`<video class="preview-video" muted playsinline preload="none" src="${vexaEsc(x.preview)}"></video>`:''}${x.duration?`<span class="duration-badge">${vexaEsc(x.duration)}</span>`:''}${x.quality?`<span class="quality-badge">${vexaEsc(x.quality)}</span>`:''}</div><div class="card-body"><h3>${vexaEsc(x.title)}</h3><div class="card-meta">${formatViews(x.views||0)} views · <span class="card-likes">${formatViews(x.likes||0)} likes</span> · <span class="upload-age" title="${x.created_at?new Date(x.created_at).toLocaleString():''}">${formatUploadAge(x.created_at)}</span></div></div></a></article>`;
 }
 function setupPreviews(){document.querySelectorAll('.video-card').forEach(card=>{const video=card.querySelector('.preview-video');if(!video)return;let timer=null,previewing=false;const start=()=>{clearTimeout(timer);timer=setTimeout(()=>{video.currentTime=0;video.play().catch(()=>{});card.classList.add('previewing');previewing=true;},450)};const stop=()=>{clearTimeout(timer);timer=null;video.pause();video.currentTime=0;card.classList.remove('previewing');previewing=false};card.addEventListener('mouseenter',start);card.addEventListener('mouseleave',stop);card.addEventListener('touchstart',start,{passive:true});card.addEventListener('touchend',()=>{if(previewing)stop()},{passive:true});card.addEventListener('touchcancel',stop,{passive:true});});}
 function renderPagination(total){const p=document.getElementById('pagination');if(!p)return;if(total<=1){p.innerHTML='';return;}let html=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaPage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaPage(${n})">${n}</button>`;html+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaPage(${currentPage+1})">Next</button>`;p.innerHTML=html;}
@@ -144,7 +216,7 @@ async function renderVideoPage(){
   if(!v){box.innerHTML='<div class="form"><h1>Video not found</h1><a class="btn" href="index.html">Back</a></div>';return;}v=normalizeVideo(v);
   const creatorHref=v.uploader_id?`creator.html?id=${encodeURIComponent(v.uploader_id)}`:'#';
   const badges=[v.duration?`<span class="meta-badge">${vexaEsc(v.duration)}</span>`:'',v.quality?`<span class="meta-badge quality">${vexaEsc(v.quality)}</span>`:''].join('');
-  box.innerHTML=`<div class="player-wrap"><video class="main-player" controls playsinline poster="${vexaEsc(v.thumbnail)}" src="${vexaEsc(v.video||'')}"></video></div><div class="video-info"><h1>${vexaEsc(v.title)}</h1><div class="video-top-meta">${badges}<span class="muted">${formatViews(v.views||0)} views</span></div><div class="creator-line"><a class="creator-pill" href="${creatorHref}">Creator: ${vexaEsc(v.uploader_name||'Vexa Creator')}</a><span id="followSlot"></span></div><div class="tags">${(v.tags||[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)}</a>`).join('')}</div><p>${vexaEsc(v.description||'')}</p></div><div class="actions"><button class="action-btn" id="likeBtn">${icon.like}<span>Like</span><strong class="action-count">${v.likes||0}</strong></button><button class="action-btn" id="dislikeBtn">${icon.dislike}<span>Dislike</span><strong class="action-count">${v.dislikes||0}</strong></button><button class="action-btn" id="commentJump">${icon.comment}<span>Comments</span><strong class="action-count" id="commentCount">0</strong></button><a class="action-btn" href="${vexaEsc(v.download||v.video||'')}" download>${icon.download}<span>Download</span></a><button class="action-btn" id="saveBtn">${icon.save}<span>Save</span></button><button class="action-btn" id="shareBtn">${icon.share}<span>Share</span></button><a class="action-btn" href="report.html?video=${encodeURIComponent(v.id)}">${icon.report}<span>Report</span></a></div><section class="comment-box collapsed" id="commentsSection"><h2>Comments</h2><form class="comment-form" id="commentForm"><input id="commentInput" maxlength="1000" placeholder="Add a comment..." required><button class="btn primary">Post</button></form><div id="commentList" class="comment-list"></div></section><section class="related-wrap"><h2>Related videos</h2><div class="grid home-grid" id="relatedGrid"></div><div class="homepage-more"><button class="btn" id="moreRelated">See more</button></div></section>`;
+  box.innerHTML=`<div class="player-wrap"><video class="main-player" controls playsinline poster="${vexaEsc(v.thumbnail)}" src="${vexaEsc(v.video||'')}"></video></div><div class="video-info"><h1>${vexaEsc(v.title)}</h1><div class="video-top-meta">${badges}<span class="muted">${formatViews(v.views||0)} views</span><span class="muted upload-age" title="${v.created_at?new Date(v.created_at).toLocaleString():''}">${formatUploadAge(v.created_at)}</span></div><div class="creator-line"><a class="creator-pill" href="${creatorHref}">Creator: ${vexaEsc(v.uploader_name||'Vexa Creator')}</a><span id="followSlot"></span></div><div class="tags">${(v.tags||[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)}</a>`).join('')}</div><p>${vexaEsc(v.description||'')}</p></div><div class="actions"><button class="action-btn" id="likeBtn">${icon.like}<span>Like</span><strong class="action-count">${v.likes||0}</strong></button><button class="action-btn" id="dislikeBtn">${icon.dislike}<span>Dislike</span><strong class="action-count">${v.dislikes||0}</strong></button><button class="action-btn" id="commentJump">${icon.comment}<span>Comments</span><strong class="action-count" id="commentCount">0</strong></button><a class="action-btn" href="${vexaEsc(v.download||v.video||'')}" download>${icon.download}<span>Download</span></a><button class="action-btn" id="saveBtn">${icon.save}<span>Save</span></button><button class="action-btn" id="shareBtn">${icon.share}<span>Share</span></button><a class="action-btn" href="report.html?video=${encodeURIComponent(v.id)}">${icon.report}<span>Report</span></a></div><section class="comment-box collapsed" id="commentsSection"><h2>Comments</h2><form class="comment-form" id="commentForm"><input id="commentInput" maxlength="1000" placeholder="Add a comment..." required><button class="btn primary">Post</button></form><div id="commentList" class="comment-list"></div></section><section class="related-wrap"><h2>Related videos</h2><div class="grid home-grid" id="relatedGrid"></div><div class="homepage-more"><button class="btn" id="moreRelated">See more</button></div></section>`;
   setupReactions(v.id);setupShare(v);setupSave(v);document.getElementById('commentJump').onclick=()=>{const sec=document.getElementById('commentsSection');sec.classList.toggle('collapsed');if(!sec.classList.contains('collapsed'))sec.scrollIntoView({behavior:'smooth'});};await loadComments(v.id);await setupVideoFollow(v);await loadRelated(v);await incrementView(v.id);
 }
 async function setupVideoFollow(v){const slot=document.getElementById('followSlot');if(!slot||!v.uploader_id||!window.supabaseClient)return;const auth=await window.supabaseClient.auth.getUser();const user=auth.data.user;if(!user||user.id===v.uploader_id)return;const {data}=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',v.uploader_id).eq('follower_id',user.id).maybeSingle();let following=!!data;slot.innerHTML=`<button class="btn follow-btn" id="videoFollowBtn">${following?'Following':'Follow'}</button>`;document.getElementById('videoFollowBtn').onclick=async()=>{const q=following?window.supabaseClient.from('creator_followers').delete().eq('creator_id',v.uploader_id).eq('follower_id',user.id):window.supabaseClient.from('creator_followers').insert({creator_id:v.uploader_id,follower_id:user.id});const {error}=await q;if(error){alert(error.message);return;}following=!following;document.getElementById('videoFollowBtn').textContent=following?'Following':'Follow';};}
@@ -172,5 +244,5 @@ async function loadTags(){
 }
 async function renderCreatorPage(){
   const box=document.getElementById('creatorPage'),id=new URLSearchParams(location.search).get('id');if(!id){box.innerHTML='<p class="muted">Creator not found.</p>';return;}let videos=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('videos').select('*').eq('uploader_id',id).eq('status','published').limit(300);if(data)videos=data.map(normalizeVideo);}let profile=null;if(window.supabaseClient){const {data}=await window.supabaseClient.from('profiles').select('username,display_name').eq('id',id).maybeSingle();profile=data;}const name=profile?.display_name||profile?.username||videos[0]?.uploader_name||'Creator';let followerCount=0,following=false,currentUser=null;if(window.supabaseClient){const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});if(!count.error)followerCount=Number(count.data||0);const auth=await window.supabaseClient.auth.getUser();currentUser=auth.data.user;if(currentUser&&currentUser.id!==id){const f=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',id).eq('follower_id',currentUser.id).maybeSingle();following=!!f.data;}}
-  const followButton=currentUser&&currentUser.id!==id?`<button class="btn follow-btn" id="followBtn">${following?'Following':'Follow'}</button>`:'';box.innerHTML=`<div class="profile-head"><div class="avatar">${vexaEsc(name.slice(0,1).toUpperCase())}</div><div style="flex:1"><h1 style="margin:0">${vexaEsc(name)}</h1><div class="muted"><span id="followerCount">${followerCount}</span> followers</div></div>${followButton}</div><div class="grid home-grid" id="creatorGrid"></div>`;document.getElementById('creatorGrid').innerHTML=videos.map(createCard).join('')||'<p class="muted">No published content yet.</p>';setupPreviews();const fb=document.getElementById('followBtn');if(fb)fb.onclick=async()=>{if(following){const {error}=await window.supabaseClient.from('creator_followers').delete().eq('creator_id',id).eq('follower_id',currentUser.id);if(error){alert(error.message);return;}following=false;}else{const {error}=await window.supabaseClient.from('creator_followers').insert({creator_id:id,follower_id:currentUser.id});if(error){alert(error.message);return;}following=true;}fb.textContent=following?'Following':'Follow';const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});if(!count.error)document.getElementById('followerCount').textContent=Number(count.data||0);};
+  const followButton=currentUser&&currentUser.id!==id?`<button class="btn follow-btn" id="followBtn">${following?'Following':'Follow'}</button>`:'';box.innerHTML=`<div class="profile-head"><div class="avatar">${vexaEsc(name.slice(0,1).toUpperCase())}</div><div style="flex:1"><h1 style="margin:0">${vexaEsc(name)}</h1><div class="muted"><span id="followerCount">${followerCount}</span> followers</div></div>${followButton}</div><div class="grid home-grid" id="creatorGrid"></div>`;document.getElementById('creatorGrid').innerHTML=videos.map(createCard).join('')||'<p class="muted">No published content yet.</p>';setupPreviews();if(window.supabaseClient&&id)window.supabaseClient.rpc('record_creator_profile_view',{p_creator_id:id}).catch(()=>{});const fb=document.getElementById('followBtn');if(fb)fb.onclick=async()=>{if(following){const {error}=await window.supabaseClient.from('creator_followers').delete().eq('creator_id',id).eq('follower_id',currentUser.id);if(error){alert(error.message);return;}following=false;}else{const {error}=await window.supabaseClient.from('creator_followers').insert({creator_id:id,follower_id:currentUser.id});if(error){alert(error.message);return;}following=true;}fb.textContent=following?'Following':'Follow';const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});if(!count.error)document.getElementById('followerCount').textContent=Number(count.data||0);};
 }
