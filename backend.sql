@@ -445,7 +445,7 @@ as $$
     (select count(*) from public.photos ph where ph.uploader_id=p.id and ph.status='published'),
     coalesce((select sum(coalesce(v.views,0)) from public.videos v where v.uploader_id=p.id and v.status='published'),0),
     greatest((select max(v.created_at) from public.videos v where v.uploader_id=p.id and v.status='published'),(select max(ph.created_at) from public.photos ph where ph.uploader_id=p.id and ph.status='published')),
-    coalesce((select array_agg(distinct t) from public.videos v, unnest(v.tags) t where v.uploader_id=p.id and v.status='published'),'{}')
+    '{}'::text[]
   from public.profiles p
   where p.is_creator=true
   order by posts desc, p.display_name nulls last;
