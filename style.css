@@ -102,3 +102,17 @@ body{line-height:1.35}
   .card h3,.home-grid .card h3{font-size:15px}
   .card-meta,.home-grid .card-meta{font-size:12px}
 }
+/* Vexa account menu, compact video actions, persistent appearance */
+.header-actions{position:relative}
+.account-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:7px;background:var(--surface);color:var(--text);text-decoration:none;font-size:13px;font-weight:650}
+.account-btn:hover{background:var(--surface-2)}
+.account-menu{position:absolute;right:0;top:calc(100% + 8px);width:220px;background:var(--surface);border:1px solid var(--surface-2);border-radius:10px;padding:8px;box-shadow:var(--shadow);display:none;z-index:1000}
+.account-menu.open{display:block}
+.account-menu>a,.menu-logout{display:block;width:100%;box-sizing:border-box;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:var(--text);text-decoration:none;text-align:left;cursor:pointer;font:inherit}
+.account-menu>a:hover,.menu-logout:hover,.menu-choice:hover{background:var(--surface-2)}
+.account-menu-user{padding:8px 10px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-separator{height:1px;background:var(--surface-2);margin:7px 0}.menu-label{font-size:11px;color:var(--muted);padding:5px 10px}.menu-row{display:flex;gap:6px;padding:0 2px}.menu-choice{flex:1;border:0;border-radius:7px;background:transparent;color:var(--text);padding:8px;cursor:pointer}.account-menu select{width:100%;padding:8px;border:0;border-radius:7px;background:var(--surface-2);color:var(--text);margin-bottom:5px}.menu-logout{color:var(--text)}
+.action-btn svg{width:16px;height:16px;flex:0 0 16px}.action-btn{color:#b8a8ff}.action-btn:hover{color:#d8d0ff}.action-count{font-size:11px;font-weight:600;color:var(--muted)}
+.card-likes{color:var(--muted)}
+.comment-box.collapsed{display:none}.comment-box:not(.collapsed){display:block}
+@media(max-width:640px){.account-menu{right:-4px;width:205px}.action-btn{gap:5px;padding:7px 6px}.action-btn svg{width:15px;height:15px}}

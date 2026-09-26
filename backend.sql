@@ -553,3 +553,26 @@ alter table public.saved_videos enable row level security;
 drop policy if exists "saved_videos_own" on public.saved_videos;
 create policy "saved_videos_own" on public.saved_videos for all to authenticated
 using (auth.uid()=user_id) with check (auth.uid()=user_id);
+
+-- ============================================================
+-- USER PREFERENCES (theme + language)
+-- ============================================================
+create table if not exists public.user_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  theme text not null default 'dark' check(theme in ('dark','light')),
+  language text not null default 'EN' check(language in ('EN','FR','ES')),
+  updated_at timestamptz not null default now()
+);
+alter table public.user_preferences enable row level security;
+drop policy if exists "user_preferences_select_own" on public.user_preferences;
+create policy "user_preferences_select_own" on public.user_preferences for select to authenticated using(auth.uid()=user_id);
+drop policy if exists "user_preferences_insert_own" on public.user_preferences;
+create policy "user_preferences_insert_own" on public.user_preferences for insert to authenticated with check(auth.uid()=user_id);
+drop policy if exists "user_preferences_update_own" on public.user_preferences;
+create policy "user_preferences_update_own" on public.user_preferences for update to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
+
+-- Ensure guest comments remain anonymous and moderated, while registered comments use their profile username in the UI.
+alter table public.video_comments alter column user_id drop not null;
+drop policy if exists "comments_insert_guest" on public.video_comments;
+create policy "comments_insert_guest" on public.video_comments for insert to anon, authenticated
+with check(user_id is null and length(trim(coalesce(guest_name,''))) between 1 and 80 and status='pending');
