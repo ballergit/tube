@@ -1,7 +1,6 @@
 const client=window.supabaseClient;
 document.addEventListener("DOMContentLoaded",()=>{
   const form=document.getElementById("uploadForm"),msg=document.getElementById("msg"),type=document.getElementById("contentType");
-  document.getElementById("themeBtn")?.addEventListener("click",()=>{document.documentElement.classList.toggle("light");localStorage.setItem("vexa-theme",document.documentElement.classList.contains("light")?"light":"dark")});
   type.onchange=()=>{document.getElementById("mediaFile").accept=type.value==='video'?'video/*':'image/*';document.getElementById("thumbFile").disabled=type.value==='photo';};
   form.onsubmit=async e=>{
     e.preventDefault();msg.textContent="Uploading...";

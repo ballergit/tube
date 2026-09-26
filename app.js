@@ -5,7 +5,7 @@ let currentPage = 1;
 let currentList = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
-  setupTheme(); setupMenu(); setupSearch();
+  setupTheme(); setupSearch(); applySiteSettings();
   if (document.getElementById("tagCloud")) { await loadTags(); return; }
   if (document.getElementById("creatorPage")) { await renderCreatorPage(); return; }
   if (document.getElementById("videoPage")) { await renderVideoPage(); return; }
@@ -18,11 +18,44 @@ function setupTheme(){
   const b=document.getElementById("themeBtn");
   if(b)b.onclick=()=>{const light=!document.documentElement.classList.contains("light");document.documentElement.classList.toggle("light",light);localStorage.setItem("vexa-theme",light?"light":"dark");};
 }
-function setupMenu(){
-  const b=document.getElementById("menuBtn"), o=document.getElementById("overlay");
-  if(b)b.onclick=()=>document.body.classList.toggle("menu-open");
-  if(o)o.onclick=()=>document.body.classList.remove("menu-open");
-  document.querySelectorAll(".sidebar a").forEach(a=>a.addEventListener("click",()=>document.body.classList.remove("menu-open")));
+
+// Site-wide settings: name, logo, favicon, accent color, nav items, footer.
+// Pulled from Supabase so admin edits apply everywhere without touching HTML.
+async function applySiteSettings(){
+  if(!window.supabaseClient)return;
+  let s=null;
+  try{const {data}=await window.supabaseClient.from("site_settings").select("*").eq("id",1).maybeSingle();s=data;}catch(e){}
+  if(!s)return;
+  if(s.site_name){
+    document.querySelectorAll(".brand-text").forEach(el=>el.textContent=s.site_name);
+    if(document.title) document.title=document.title.replace(/^Vexa/,s.site_name);
+  }
+  if(s.logo_url){document.querySelectorAll(".brand-logo").forEach(img=>{img.src=s.logo_url;img.hidden=false;});}
+  if(s.favicon_url){
+    let link=document.querySelector('link[rel="icon"]');
+    if(!link){link=document.createElement("link");link.rel="icon";document.head.appendChild(link);}
+    link.href=s.favicon_url;
+  }
+  if(s.accent_color)document.documentElement.style.setProperty("--accent",s.accent_color);
+  if(Array.isArray(s.nav_items)&&s.nav_items.length){
+    const current=location.pathname.split("/").pop()||"index.html";
+    document.querySelectorAll(".sidebar").forEach(aside=>{
+      aside.innerHTML=s.nav_items.map(item=>{
+        const active=item.href===current?" active":"";
+        return `<a class="side-link${active}" href="${esc(item.href)}"><span>${esc(item.label)}</span></a>`;
+      }).join("");
+    });
+  }
+  if(s.footer_text){document.querySelectorAll(".copyright").forEach(el=>el.textContent=s.footer_text);}
+  if(s.contact_email){
+    document.querySelectorAll(".footer-contact-email").forEach(el=>{el.textContent=s.contact_email;el.href="mailto:"+s.contact_email;el.hidden=false;});
+  }
+  if(s.social&&typeof s.social==="object"){
+    const links=Object.entries(s.social).filter(([,v])=>v);
+    document.querySelectorAll("#footerSocial").forEach(el=>{
+      el.innerHTML=links.map(([k,v])=>`<a href="${esc(v)}" target="_blank" rel="noopener">${esc(k)}</a>`).join("");
+    });
+  }
 }
 function setupSearch(){
   const i=document.getElementById("searchInput"); if(!i)return;
@@ -83,7 +116,7 @@ async function renderVideoPage(){
   <div class="video-info"><h1>${esc(v.title)}</h1><div class="muted">${formatViews(v.views||0)} views · ${esc(v.category||"Video")}</div><div class="creator-line">Uploaded by <a class="creator-link" href="${creatorHref}">${esc(v.uploader_name||"Vexa Creator")}</a></div>
   <div class="actions"><button class="action-btn" id="likeBtn" title="Like">♡ <span>${v.likes||0}</span></button><button class="action-btn" id="dislikeBtn" title="Dislike">♧ <span>${v.dislikes||0}</span></button><a class="action-btn" href="${esc(v.download||v.video||"")}" download title="Download">⇩ <span>Download</span></a><button class="action-btn primary" id="shareBtn" title="Share">↗ <span>Share</span></button></div>
   <div class="tags">${(v.tags||[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`).join("")}</div><p>${esc(v.description||"")}</p></div>
-  <section class="comment-box"><h2>Comments</h2><form class="comment-form" id="commentForm"><input id="commentInput" maxlength="1000" placeholder="Add a comment..." required><button class="btn primary">Post</button></form><div id="commentList" class="comment-list"></div></section>
+  <section class="comment-box"><h2>Comments</h2><form class="comment-form" id="commentForm"><input id="commentName" maxlength="80" placeholder="Name (optional if logged in)"><input id="commentInput" maxlength="1000" placeholder="Add a comment..." required><button class="btn primary">Post</button></form><p class="muted comment-note">Guests can comment. Comments are reviewed before they appear publicly.</p><div id="commentList" class="comment-list"></div></section>
   <section><h2>Related videos</h2><div class="grid" id="trendingGrid"></div></section>`;
   setupReactions(v.id); setupShare(v); await loadComments(v.id); incrementView(v.id); await loadTrending();
 }
@@ -96,11 +129,20 @@ async function setupReactions(id){
 function setupShare(v){const b=document.getElementById("shareBtn");if(!b)return;b.onclick=async()=>{const url=location.href;if(navigator.share){try{await navigator.share({title:v.title,url});return;}catch(e){}}try{await navigator.clipboard.writeText(url);alert("Link copied.");}catch(e){prompt("Copy this link:",url);}};}
 async function loadComments(videoId){
   const list=document.getElementById("commentList"),form=document.getElementById("commentForm");if(!list)return;
-  const render=rows=>{list.innerHTML=rows?.length?rows.map(c=>`<article class="comment"><div class="comment-head"><strong>${esc(c.author_name||c.username||"User")}</strong><span class="muted">${new Date(c.created_at).toLocaleDateString()}</span></div><div>${esc(c.body||c.comment||"")}</div></article>`).join(""):"<p class='muted'>No comments yet.</p>";};
+  const render=rows=>{list.innerHTML=rows?.length?rows.map(c=>`<article class="comment"><div class="comment-head"><strong>${esc(c.guest_name||c.author_name||c.username||"User")}</strong><span class="muted">${new Date(c.created_at).toLocaleDateString()}</span></div><div>${esc(c.body||c.comment||"")}</div></article>`).join(""):"<p class='muted'>No comments yet.</p>";};
   if(!window.supabaseClient){render([]);return;}
   const {data,error}=await window.supabaseClient.from("video_comments").select("*").eq("video_id",videoId).eq("status","approved").order("created_at",{ascending:false}).limit(100);
   render(error?[]:data);
-  form.onsubmit=async e=>{e.preventDefault();const input=document.getElementById("commentInput");const {data:{user}}=await window.supabaseClient.auth.getUser();if(!user){location.href="login.html";return;}const {error}=await window.supabaseClient.from("video_comments").insert({video_id:videoId,user_id:user.id,body:input.value.trim(),status:"pending"});if(error)alert(error.message);else{input.value="";alert("Comment submitted for review.");}};
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const input=document.getElementById("commentInput"),nameInput=document.getElementById("commentName");
+    const body=input.value.trim(); if(!body)return;
+    const guestName=(nameInput.value.trim()||"Guest").slice(0,80);
+    const {data:{user}}=await window.supabaseClient.auth.getUser();
+    const row={video_id:videoId,user_id:user?.id||null,guest_name:guestName,body,status:"pending"};
+    const {error}=await window.supabaseClient.from("video_comments").insert(row);
+    if(error)alert(error.message);else{input.value="";if(!user)nameInput.value="";alert("Comment submitted for review.");}
+  };
 }
 async function loadTrending(){const grid=document.getElementById("trendingGrid");if(!grid)return;let list=VEXA_LOCAL;if(window.supabaseClient){const {data}=await window.supabaseClient.from("vexa_published_videos").select("*").limit(8);if(data?.length)list=data.map(normalizeVideo);}grid.innerHTML=list.slice(0,8).map(createCard).join("");setupPreviews();}
 async function loadTags(){
