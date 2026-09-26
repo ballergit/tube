@@ -11,12 +11,11 @@
 <body>
 <header class="site-header"><div class="header-inner">
 <a class="brand" href="index.html"><img class="brand-logo" alt="" hidden><span class="brand-text">Vexa</span></a>
-<div class="search"><input id="searchInput" placeholder="Search videos..."></div>
 <div class="header-actions">
 <select class="language" id="languageSelect"><option>EN</option><option>FR</option><option>ES</option></select>
 <button class="icon-btn" id="themeBtn" title="Theme">🌙</button>
 <a class="icon-btn" href="login.html" title="Account">👤</a>
-</div></div></header>
+</div></div></header><div class="nav-toolbar"><button class="hamburger-btn" id="hamburgerBtn" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button></div>
 <div class="layout">
 <aside class="sidebar">
 <a class="side-link" href="index.html"><span>Home</span></a>
@@ -25,7 +24,7 @@
 <a class="side-link" href="tags.html"><span>Tags</span></a>
 <a class="side-link" href="community.html"><span>Community</span></a>
 <a class="side-link" href="photos.html"><span>Photos</span></a>
-<a class="side-link" href="upload.html"><span>Upload</span></a>
+<a class="side-link" href="upload.html"><span>UPLOAD</span></a>
 </aside><main class="main auth-wrap"><form class="form" id="uploadForm"><h1>Upload content</h1><p class="muted">User submissions are reviewed by an admin before publication.</p><div class="field"><label>Type</label><select id="contentType"><option value="video">Video</option><option value="photo">Photo</option></select></div><div class="field"><label>File</label><input id="mediaFile" type="file" accept="video/*,image/*" required></div><div class="field"><label>Thumbnail (optional for video)</label><input id="thumbFile" type="file" accept="image/*"></div><div class="field"><label>Title</label><input id="title" required></div><div class="field"><label>Category</label><input id="category" placeholder="e.g. Entertainment"></div><div class="field"><label>Description</label><textarea id="description" rows="5"></textarea></div><div class="field"><label>Tags</label><input id="tags" placeholder="comma,separated,tags"></div><button class="btn primary" type="submit">Upload</button><p id="msg" class="muted"></p></form></main>
 </div>
 <footer class="footer"><div class="footer-grid">

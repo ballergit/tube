@@ -5,17 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vexa — Categories</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 
 </head>
 <body>
 <header class="site-header"><div class="header-inner">
 <a class="brand" href="index.html"><img class="brand-logo" alt="" hidden><span class="brand-text">Vexa</span></a>
-<div class="search"><input id="searchInput" placeholder="Search videos..."></div>
 <div class="header-actions">
 <select class="language" id="languageSelect"><option>EN</option><option>FR</option><option>ES</option></select>
 <button class="icon-btn" id="themeBtn" title="Theme">🌙</button>
 <a class="icon-btn" href="login.html" title="Account">👤</a>
-</div></div></header>
+</div></div></header><div class="nav-toolbar"><button class="hamburger-btn" id="hamburgerBtn" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button></div>
 <div class="layout">
 <aside class="sidebar">
 <a class="side-link" href="index.html"><span>Home</span></a>
@@ -24,7 +25,7 @@
 <a class="side-link" href="tags.html"><span>Tags</span></a>
 <a class="side-link" href="community.html"><span>Community</span></a>
 <a class="side-link" href="photos.html"><span>Photos</span></a>
-<a class="side-link" href="upload.html"><span>Upload</span></a>
+<a class="side-link" href="upload.html"><span>UPLOAD</span></a>
 </aside><main class="main"><h1>Categories</h1><div class="category-grid"><a class="category" href="videos.html?category=1">Entertainment</a><a class="category" href="videos.html?category=2">Music</a><a class="category" href="videos.html?category=3">Sports</a><a class="category" href="videos.html?category=4">Education</a></div></main>
 </div>
 <footer class="footer"><div class="footer-grid">

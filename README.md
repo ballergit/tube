@@ -1,18 +1,27 @@
-# Vexa
+# Vexa current project
 
-A responsive video website frontend with Supabase Auth + database integration.
+This ZIP is based on the previously supplied Vexa project and includes the requested master-checklist changes without replacing the project with a separate site.
+
+## Included in this update
+- Restored hamburger navigation with the requested text-only sidebar.
+- Removed the public `Search Videos` bar from the site pages.
+- Home page uses the requested dark, responsive two-column mobile video layout and `Videos Being Watched` section.
+- Photos use the same responsive content-card approach.
+- Video pages use the requested title/metadata/tag/action layout with Like, Dislike, Comments, Download, Save, Share and Report controls.
+- Related videos support `See more` loading.
+- Removed the guest-comment explanatory notice while keeping guest comments and server-side moderation.
+- Creator follow/unfollow support.
+- Front-end user dashboard for managing only the logged-in user's own uploads.
+- `/admin.html` admin access verification fixed and checked through Supabase server-side RPC/RLS.
+- Admin video/photo editing, moderation, publishing, deletion and editable posted date/time.
+- Admin direct video/photo upload and publish.
+- Admin homepage section reorder/toggle controls.
+- Admin site name, logo upload/URL, favicon, colors, navigation and footer controls.
+- Server-enforced database/RLS rules for user-owned content, comments, follows, saved videos and admin operations.
+- Storage buckets/policies for media and site assets are included in `backend.sql`.
+
+## Supabase setup
+Run the complete `backend.sql` file in the Supabase SQL Editor before using the new database-backed features. The browser uses only the Supabase publishable/anon key in `supabase-config.js`; never put a service-role/secret key in frontend code.
 
 ## Important
-- Replace the placeholder publishable key in `supabase-config.js`.
-- Never put a Supabase `service_role` key, secret key, JWT secret, or database password in frontend files.
-- GitHub Pages hosts the frontend. Supabase provides authentication and database APIs.
-- Video files themselves should be hosted only where you have permission to store/distribute them.
-
-## Deploy
-1. Upload all files to your GitHub repository.
-2. Edit `supabase-config.js` and paste your Supabase Project URL and Publishable key.
-3. Enable GitHub Pages for the repository.
-4. In Supabase Auth, add your GitHub Pages URL to the allowed redirect URLs.
-
-
-Latest UI update: sidebar navigation is text-only; Upload matches other navigation links; guest comments are supported through moderated anonymous comments; mobile catalog/search is compact and borderless.
+The existing Supabase project/schema is treated as the source of truth. The SQL uses additive migrations, `if not exists`, `drop policy if exists`, and `create or replace` patterns where practical.

@@ -8,15 +8,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 </head>
-<body>
+<body data-home="true">
 <header class="site-header"><div class="header-inner">
 <a class="brand" href="index.html"><img class="brand-logo" alt="" hidden><span class="brand-text">Vexa</span></a>
-<div class="search"><input id="searchInput" placeholder="Search videos..."></div>
 <div class="header-actions">
 <select class="language" id="languageSelect"><option>EN</option><option>FR</option><option>ES</option></select>
 <button class="icon-btn" id="themeBtn" title="Theme">🌙</button>
 <a class="icon-btn" href="login.html" title="Account">👤</a>
-</div></div></header>
+</div></div></header><div class="nav-toolbar"><button class="hamburger-btn" id="hamburgerBtn" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button></div>
 <div class="layout">
 <aside class="sidebar">
 <a class="side-link active" href="index.html"><span>Home</span></a>
@@ -25,12 +24,8 @@
 <a class="side-link" href="tags.html"><span>Tags</span></a>
 <a class="side-link" href="community.html"><span>Community</span></a>
 <a class="side-link" href="photos.html"><span>Photos</span></a>
-<a class="side-link" href="upload.html"><span>Upload</span></a>
-</aside><main class="main">
-<div class="section-title"><h1>Latest videos</h1></div>
-<div id="videoGrid" class="grid"></div>
-<div class="pagination" id="pagination"></div>
-</main>
+<a class="side-link" href="upload.html"><span>UPLOAD</span></a>
+</aside><main class="main"><section class="home-section"><div class="section-title"><h1>Videos Being Watched</h1><span class="section-plus">+</span></div><div id="videoGrid" class="grid home-grid"></div><div id="pagination" class="pagination"></div></section></main>
 </div>
 <footer class="footer"><div class="footer-grid">
 <div><h3>Vexa</h3><a href="about.html">About</a><a href="contact.html">Contact</a></div>
