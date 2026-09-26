@@ -15,13 +15,47 @@ const icon = {
 };
 
 window.addEventListener('DOMContentLoaded', async()=>{
-  setupTheme(); setupMobileSidebar(); await applySiteSettings();
+  setupTheme(); setupMobileSidebar(); setupAuthUI(); await applySiteSettings();
   if(document.getElementById('tagCloud')) return loadTags();
   if(document.getElementById('creatorPage')) return renderCreatorPage();
   if(document.getElementById('videoPage')) return renderVideoPage();
   if(document.getElementById('photoGrid')) return loadPhotosPage();
   if(document.getElementById('videoGrid')) return loadListing();
 });
+
+
+
+async function setupAuthUI(){
+  const client=window.supabaseClient;
+  if(!client)return;
+  try{
+    const {data:{session}}=await client.auth.getSession();
+    updateAuthUI(session?.user||null);
+    client.auth.onAuthStateChange((_event,newSession)=>updateAuthUI(newSession?.user||null));
+  }catch(e){console.warn('Auth UI unavailable',e);}
+}
+
+function updateAuthUI(user){
+  const path=location.pathname.split('/').pop()||'index.html';
+  if(path==='login.html'||path==='signup.html'||path==='admin-login.html'||path==='admin.html')return;
+  document.querySelectorAll('a[href="login.html"]').forEach(link=>{
+    link.textContent=user?'Dashboard':'Login';
+    link.title=user?'Open your dashboard':'Log in';
+    link.href=user?'dashboard.html':'login.html';
+    link.removeAttribute('aria-label');
+  });
+  document.querySelectorAll('[data-auth-status]').forEach(el=>{
+    el.textContent=user?`Signed in as ${user.email||'user'}`:'Not signed in';
+  });
+  const actions=document.querySelector('.header-actions');
+  if(actions && user && !document.getElementById('logoutBtn')){
+    const b=document.createElement('button');
+    b.type='button';b.id='logoutBtn';b.className='icon-btn';b.textContent='Log out';b.title='Log out';
+    b.onclick=async()=>{const client=window.supabaseClient;const {error}=await client.auth.signOut();if(error){alert(error.message);return;}location.href='index.html';};
+    actions.appendChild(b);
+  }
+  if(actions && !user)document.getElementById('logoutBtn')?.remove();
+}
 
 function setupTheme(){
   const saved=localStorage.getItem('vexa-theme');

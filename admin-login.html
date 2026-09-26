@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vexa — Admin Login</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="index.html"><img class="brand-logo" alt="" hidden><span class="brand-text">Vexa</span></a>
+<div class="header-actions"><a class="icon-btn" href="login.html">User Login</a></div>
+</div></header>
+<div class="nav-toolbar"><button class="hamburger-btn" id="hamburgerBtn" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button></div>
+<div class="layout">
+<aside class="sidebar">
+<a class="side-link" href="index.html"><span>Home</span></a>
+<a class="side-link" href="videos.html"><span>Videos</span></a>
+<a class="side-link" href="photos.html"><span>Photos</span></a>
+<a class="side-link" href="categories.html"><span>Categories</span></a>
+<a class="side-link" href="tags.html"><span>Tags</span></a>
+<a class="side-link" href="community.html"><span>Community</span></a>
+<a class="side-link" href="upload.html"><span>UPLOAD</span></a>
+</aside>
+<main class="main auth-wrap">
+<form class="form" id="adminLoginForm">
+<h1>Admin Login</h1>
+<p class="muted">Sign in with the account that has administrator access.</p>
+<div class="field"><label>Email</label><input id="adminEmail" type="email" autocomplete="username" required></div>
+<div class="field"><label>Password</label><input id="adminPassword" type="password" autocomplete="current-password" required></div>
+<button class="btn primary" type="submit" id="adminLoginBtn">Log in</button>
+<p id="adminLoginMsg" class="muted" role="status"></p>
+<p><a href="login.html">Go to regular user login</a></p>
+</form>
+</main>
+</div>
+<footer class="footer"><div class="footer-grid">
+<div><h3>Vexa</h3><a href="about.html">About</a><a href="contact.html">Contact</a></div>
+<div><h3>Help</h3><a href="faq.html">FAQ</a><a href="report.html">Report</a></div>
+<div><h3>Legal</h3><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="dmca.html">DMCA</a></div>
+<div><h3>Partners</h3><a href="advertise.html">Advertise</a><a href="partner.html">Partner</a></div>
+</div><div class="copyright">© 2026 Vexa</div></footer>
+<script src="app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const client=window.supabaseClient, form=document.getElementById('adminLoginForm'), msg=document.getElementById('adminLoginMsg');
+  if(!client){msg.textContent='Supabase is not connected.';return;}
+  const params=new URLSearchParams(location.search);
+  const next=params.get('next')==='admin.html'?'admin.html':'admin.html';
+  const {data:{session}}=await client.auth.getSession();
+  if(session?.user){
+    const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
+    if(!error && isAdmin===true){location.replace(next);return;}
+    if(params.get('switch')==='1') await client.auth.signOut();
+    else msg.textContent='You are signed in, but this account is not an administrator. Log out here and sign in with your admin account.';
+  }
+  form.onsubmit=async e=>{
+    e.preventDefault();msg.textContent='Signing in…';
+    const email=document.getElementById('adminEmail').value.trim(), password=document.getElementById('adminPassword').value;
+    const {error}=await client.auth.signInWithPassword({email,password});
+    if(error){msg.textContent=error.message;return;}
+    const {data:isAdmin,error:adminError}=await client.rpc('is_vexa_admin');
+    if(adminError){await client.auth.signOut();msg.textContent='Admin access could not be verified: '+adminError.message;return;}
+    if(isAdmin!==true){await client.auth.signOut();msg.textContent='This account is a normal user account, not an admin account.';return;}
+    msg.textContent='Admin verified. Opening portal…';location.replace(next);
+  };
+});
+</script>
+</body>
+</html>

@@ -15,14 +15,22 @@ document.addEventListener('DOMContentLoaded',async()=>{
   try{
     const {data:{session},error:sessionError}=await client.auth.getSession();
     if(sessionError)throw sessionError;
-    if(!session?.user)return gateMsg('Not signed in.');
+    if(!session?.user){
+      location.replace('admin-login.html?next=admin.html');
+      return;
+    }
     currentUser=session.user;
     const {data:isAdmin,error}=await client.rpc('is_vexa_admin');
     if(error)throw error;
-    if(isAdmin!==true)return gateMsg('Admin access required.');
+    if(isAdmin!==true){
+      gateMsg('This account does not have administrator access.');
+      gate.insertAdjacentHTML('beforeend','<div class="row-actions" style="margin-top:12px"><a class="btn primary" href="admin-login.html?switch=1">Use admin account</a><button class="btn" id="adminLogoutBtn">Log out</button></div>');
+      document.getElementById('adminLogoutBtn').onclick=async()=>{await client.auth.signOut();location.replace('admin-login.html?next=admin.html');};
+      return;
+    }
     gate.hidden=true;document.getElementById('adminApp').hidden=false;
     setupTabs();setupActions();await loadEverything();
-  }catch(e){console.error(e);gateMsg('Admin access could not be verified.');}
+  }catch(e){console.error(e);gateMsg('Admin access could not be verified: '+(e?.message||'Unknown error'));}
 });
 function gateMsg(msg){const gate=document.getElementById('gate');if(gate)gate.innerHTML=`<p class="muted">${esc(msg)}</p>`;}
 function setupTheme(){const saved=localStorage.getItem('vexa-theme');document.documentElement.classList.toggle('light',saved==='light');const b=document.getElementById('themeBtn');if(b)b.onclick=()=>{const light=!document.documentElement.classList.contains('light');document.documentElement.classList.toggle('light',light);localStorage.setItem('vexa-theme',light?'light':'dark');};}

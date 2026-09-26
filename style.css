@@ -5,3 +5,100 @@
 @media(max-width:900px){.grid,.home-grid,.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.main{padding:28px 20px 36px}.sidebar{padding-left:30px;padding-right:30px}.section-title h1{font-size:28px}.card h3{font-size:19px}.actions{overflow-x:auto}.action-btn{font-size:11px;min-width:82px;flex-basis:82px}.action-btn .action-icon{font-size:23px}.stat-grid{grid-template-columns:repeat(2,1fr)}.dashboard-item{flex-direction:column}.dashboard-thumb{width:100%;flex-basis:auto}.admin-upload-grid,.two-col{grid-template-columns:1fr}}
 @media(max-width:600px){.header-inner{height:214px;padding:16px 28px}.brand{font-size:23px}.brand-text{font-size:23px}.brand-logo{max-width:245px;max-height:82px}.header-actions{gap:2px}.language{font-size:17px}.icon-btn{font-size:20px}.nav-toolbar{height:92px;padding:0 29px}.hamburger-btn{width:102px;height:70px}.main{padding:35px 27px 42px}.section-title{padding-bottom:13px;margin-bottom:18px}.section-title h1{font-size:30px}.grid,.home-grid,.photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.card h3,.home-grid .card h3{font-size:18px}.card-meta,.home-grid .card-meta{font-size:16px}.duration-badge{font-size:15px;right:5px;bottom:5px}.side-link{font-size:28px;padding:22px 0}.footer-grid{grid-template-columns:repeat(2,1fr)}.video-info h1{font-size:26px}.actions{overflow-x:auto}.action-btn{min-width:82px;flex-basis:82px}.tags .tag-link{font-size:16px}.admin-toolbar{grid-template-columns:1fr}.nav-item-row{grid-template-columns:1fr}.homepage-section-row{grid-template-columns:auto 1fr auto}.stat-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:380px){.main{padding-left:16px;padding-right:16px}.grid,.home-grid,.photo-grid{gap:14px}.card h3{font-size:16px}.card-meta{font-size:14px}.side-link{font-size:25px}.footer-grid{grid-template-columns:1fr}}
+
+/* Vexa compact visual pass — preserve existing layout/functionality, reduce oversized UI */
+html,body{font-size:16px}
+body{line-height:1.35}
+.site-header{height:auto;background:#1b1b1b;border-bottom:1px solid #303030}
+.header-inner{height:104px;padding:12px 28px;gap:14px;align-items:center}
+.brand{font-size:22px;gap:8px}
+.brand-text{font-size:22px;line-height:1}
+.brand-logo{max-height:58px;max-width:190px}
+.header-actions{gap:3px}
+.language{font-size:15px;padding:7px 8px;color:#aaa}
+.icon-btn{font-size:18px;padding:7px 9px;color:#aaa}
+.icon-btn:hover{background:#252525;color:#fff}
+.nav-toolbar{height:70px;padding:0 28px;background:#1b1b1b;border-bottom:1px solid #303030}
+.hamburger-btn{width:72px;height:52px;border:1px solid #3a3a3a;border-radius:6px;gap:6px;background:#1b1b1b}
+.hamburger-btn span{width:31px;height:3px;background:#aaa}
+.layout{min-height:calc(100vh - 174px)}
+.sidebar{padding:14px 28px 18px}
+.side-link{padding:16px 0;font-size:20px;line-height:1.2}
+.main{padding:28px 28px 36px}
+.section-title{margin-bottom:14px;padding-bottom:10px;border-bottom-width:2px}
+.section-title h1{font-size:25px;line-height:1.2}
+.section-title .section-plus{font-size:34px}
+.grid,.photo-grid{gap:20px}
+.card-body{padding:8px 0 12px}
+.card h3,.home-grid .card h3{font-size:17px;line-height:1.3;margin-bottom:5px}
+.card-meta,.home-grid .card-meta{font-size:14px}
+.duration-badge{font-size:14px;padding:3px 6px;right:6px;bottom:6px}
+.quality-badge{font-size:11px;padding:4px 6px}
+.btn{font-size:14px;padding:8px 11px}
+.form{padding:20px;max-width:520px}
+.field label{font-size:14px}
+.field input,.field textarea,.field select{font-size:15px;padding:10px 11px}
+.footer{padding:24px 28px}
+.footer h3{font-size:13px}
+.footer a{font-size:13px;margin:5px 0}
+.copyright{font-size:11px;margin-top:16px;padding-top:12px}
+.video-info h1{font-size:25px}
+.meta-badge{font-size:14px;padding:4px 8px}
+.tags .tag-link{font-size:14px;padding:6px 9px}
+.actions{margin:12px 0 18px}
+.action-btn{font-size:12px;min-width:78px;flex-basis:78px;padding:9px 5px}
+.action-btn svg,.action-btn .action-icon{width:22px;height:22px;font-size:22px}
+.related-wrap h2,.comment-box h2{font-size:20px}
+.comment{font-size:14px}
+.comment-head{font-size:12px}
+.category{padding:16px}
+.tag-cloud .tag-link{font-size:13px}
+.profile-head h1{font-size:24px}
+.avatar{width:48px;height:48px}
+.dashboard-item{padding:10px}
+.dashboard-item-top h3{font-size:17px}
+.stat-card .num{font-size:22px}
+.stat-card .lbl{font-size:11px}
+.admin-table{font-size:12px}
+.tab-btn{font-size:12px;padding:8px 11px}
+
+@media(max-width:900px){
+  .header-inner{height:92px;padding:10px 20px}
+  .brand-text{font-size:21px}
+  .brand-logo{max-width:175px;max-height:52px}
+  .nav-toolbar{height:64px;padding:0 20px}
+  .hamburger-btn{width:68px;height:50px}
+  .main{padding:24px 20px 32px}
+  .section-title h1{font-size:23px}
+  .side-link{font-size:19px;padding:14px 0}
+  .card h3,.home-grid .card h3{font-size:16px}
+  .card-meta,.home-grid .card-meta{font-size:13px}
+}
+@media(max-width:600px){
+  .header-inner{height:86px;padding:9px 18px}
+  .brand{font-size:20px}
+  .brand-text{font-size:20px}
+  .brand-logo{max-width:155px;max-height:48px}
+  .language{font-size:14px;padding:6px}
+  .icon-btn{font-size:17px;padding:6px 7px}
+  .nav-toolbar{height:62px;padding:0 18px}
+  .hamburger-btn{width:64px;height:48px}
+  .hamburger-btn span{width:28px;height:3px}
+  .main{padding:24px 18px 32px}
+  .section-title{margin-bottom:14px;padding-bottom:9px}
+  .section-title h1{font-size:22px}
+  .section-title .section-plus{font-size:31px}
+  .grid,.home-grid,.photo-grid{gap:18px}
+  .card h3,.home-grid .card h3{font-size:16px;line-height:1.3}
+  .card-meta,.home-grid .card-meta{font-size:13px}
+  .side-link{font-size:19px;padding:14px 0}
+  .footer{padding:22px 18px}
+}
+@media(max-width:380px){
+  .header-inner{padding-left:14px;padding-right:14px}
+  .nav-toolbar{padding-left:14px;padding-right:14px}
+  .main{padding-left:14px;padding-right:14px}
+  .grid,.home-grid,.photo-grid{gap:13px}
+  .card h3,.home-grid .card h3{font-size:15px}
+  .card-meta,.home-grid .card-meta{font-size:12px}
+}
