@@ -47,7 +47,6 @@ function updateAuthUI(user){
   const emailEl=document.getElementById('summaryEmail');
   const avatarEl=document.querySelector('#profileDropdown .avatar');
   const profileLink=document.getElementById('accountProfile');
-  const creatorDashboardLink=document.getElementById('creatorDashboardLink');
   const applyCreatorLink=document.getElementById('applyCreatorLink');
   const toggle=document.getElementById('themeToggle');
 
@@ -76,17 +75,14 @@ function updateAuthUI(user){
     window.supabaseClient.rpc('is_vexa_creator').then(({data,error})=>{
       const isCreator=!error&&data===true;
       if(profileLink)profileLink.hidden=!isCreator;
-      if(creatorDashboardLink)creatorDashboardLink.hidden=!isCreator;
       if(applyCreatorLink)applyCreatorLink.hidden=isCreator;
       if(isCreator&&profileLink)profileLink.href='profile.html?id='+encodeURIComponent(user.id);
     }).catch(()=>{
       if(profileLink)profileLink.hidden=true;
-      if(creatorDashboardLink)creatorDashboardLink.hidden=true;
       if(applyCreatorLink)applyCreatorLink.hidden=false;
     });
   }else{
     if(profileLink)profileLink.hidden=true;
-    if(creatorDashboardLink)creatorDashboardLink.hidden=true;
     if(applyCreatorLink)applyCreatorLink.hidden=true;
   }
 
@@ -107,7 +103,7 @@ function setupAccountMenu(){
   let account=document.getElementById('accountBtn');
   if(!account){
     account=document.createElement('a');account.id='accountBtn';account.className='header-account-btn';account.href='login.html';account.title='Log in';account.setAttribute('aria-label','Log in');
-    account.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    account.textContent='Login';
     actions.prepend(account);
   }
   let container=document.getElementById('profileDropdown');
@@ -115,7 +111,6 @@ function setupAccountMenu(){
     container=document.createElement('div');container.id='profileDropdown';container.className='profile-container';container.hidden=true;
     container.innerHTML=`
       <button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu" onclick="toggleDropdown(event)">
-        <span class="profile-avatar-fallback" aria-hidden="true"></span>
         <img src="" alt="User Profile" class="avatar" hidden>
       </button>
       <div class="dropdown-menu" id="accountMenu">
@@ -128,7 +123,7 @@ function setupAccountMenu(){
           <li><a href="account.html#settings">Account Settings</a></li>
           <li><a href="privacy.html">Security &amp; Privacy</a></li>
           <li><a href="creator-apply.html" id="applyCreatorLink">Apply to Become a Creator</a></li>
-          <li><a href="creator-dashboard.html" id="creatorDashboardLink" hidden>Creator Dashboard</a></li>
+          
           <li class="toggle-item"><span>Dark Mode</span><label class="switch"><input type="checkbox" id="themeToggle" aria-label="Dark Mode"><span class="slider"></span></label></li>
         </ul>
         <div class="divider"></div><div class="logout-section"><a href="#logout" class="logout-btn" id="accountLogout">Log Out</a></div>
@@ -264,290 +259,40 @@ window.vexaPage=async n=>{currentPage=Math.max(1,n);if(window.vexaServerVideoPag
 
 async function renderHome(){
   const main=document.querySelector('.main');if(!main)return;
-  let settings={};try{const {data}=await window.supabaseClient.from('site_settings').select('homepage_sections').eq('id',1).maybeSingle();settings=data?.homepage_sections||{};}catch(e){}
-  const defaults=[{key:'watched',label:'Videos Being Watched',enabled:true},{key:'latest',label:'Latest Videos',enabled:false},{key:'featured',label:'Featured',enabled:false},{key:'trending',label:'Trending',enabled:false}];
-  const sections=Array.isArray(settings?.order)?settings.order.map(k=>defaults.find(x=>x.key===k)).filter(Boolean):defaults;
-  const enabled=Array.isArray(settings?.enabled)?settings.enabled:defaults.filter(x=>x.enabled).map(x=>x.key);
-  const active=sections.filter(s=>enabled.includes(s.key));
-  main.innerHTML=active.map(s=>`<section class="home-section" data-home-section="${s.key}"><div class="section-title"><h1>${vexaEsc(s.label)}</h1>${s.key==='watched'?'<span class="section-plus">+</span>':''}</div><div class="grid home-grid" id="home-${s.key}"></div></section>`).join('')+'<div id="homePagination" class="pagination"></div>';
-  let watched=window.vexaHomePageData||allVideos;
-  if(!window.vexaHomePageData&&window.supabaseClient){try{const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(0,PAGE_SIZE-1);if(Array.isArray(data)&&data.length){watched=data.map(normalizeVideo);window.vexaHomeCount=count||0;}}catch(e){}}
-  const watchedGrid=document.getElementById('home-watched');
-  if(watchedGrid){const total=Math.max(1,Math.ceil((window.vexaHomeCount||watched.length)/PAGE_SIZE));const start=window.vexaHomePageData?0:(currentPage-1)*PAGE_SIZE;watchedGrid.innerHTML=watched.slice(start,start+PAGE_SIZE).map(createCard).join('');const hp=document.getElementById('homePagination');if(hp){let html=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaHomePage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaHomePage(${n})">${n}</button>`;html+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaHomePage(${currentPage+1})">Next</button>`;hp.innerHTML=html;}}
-  for(const s of active.filter(x=>x.key!=='watched')){let list=allVideos;if(s.key==='featured')list=allVideos.filter(v=>v.featured);if(s.key==='trending')list=allVideos.filter(v=>v.trending);const grid=document.getElementById(`home-${s.key}`);if(!grid)continue;if(!list.length){grid.innerHTML='<p class="muted">No published videos yet.</p>';continue;}grid.innerHTML=list.slice(0,12).map(createCard).join('');}
-  setupPreviews();
-}
-window.vexaHomePage=async n=>{currentPage=Math.max(1,n);if(window.supabaseClient){try{const from=(currentPage-1)*PAGE_SIZE;const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,from+PAGE_SIZE-1);window.vexaHomeCount=count||0;window.vexaHomePageData=(data||[]).map(normalizeVideo);}catch(e){}}renderHome();window.scrollTo({top:0,behavior:'smooth'});};
-
-
-let photoList=[],photoPage=1;const PHOTO_PAGE_SIZE=20;
-async function loadPhotosPage(){
-  const grid=document.getElementById('photoGrid');if(!grid)return;photoList=[];
-  if(window.supabaseClient){const {data,error}=await window.supabaseClient.from('vexa_published_photos').select('*').limit(300);if(!error&&data)photoList=data;}
-  if(!photoList.length)photoList=Array.from({length:36},(_,i)=>({id:`demo-${i+1}`,title:`Sample Photo ${i+1}`,image_url:`https://placehold.co/800x600/f0f0f0/222?text=Vexa+Photo+${i+1}`,thumbnail_url:`https://placehold.co/800x600/f0f0f0/222?text=Vexa+Photo+${i+1}`,views:300+i*41,created_at:new Date(Date.now()-i*86400000).toISOString()}));
-  photoPage=1;renderPhotoPage();
-}
-function renderPhotoPage(){
-  const grid=document.getElementById('photoGrid'),pager=document.getElementById('photoPagination');if(!grid)return;
-  const total=Math.max(1,Math.ceil(photoList.length/PHOTO_PAGE_SIZE));photoPage=Math.min(photoPage,total);const start=(photoPage-1)*PHOTO_PAGE_SIZE;const rows=photoList.slice(start,start+PHOTO_PAGE_SIZE);
-  grid.innerHTML=rows.map(p=>`<article class="card photo-card"><a href="${vexaEsc(p.image_url||p.thumbnail_url||'')}" target="_blank" rel="noopener"><img src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt="${vexaEsc(p.title||'Photo')}" loading="lazy"></a><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">${formatViews(p.views||0)} views · ${formatUploadAge(p.created_at)}</div></div></article>`).join('')||'<p class="muted">No published photos yet.</p>';
-  if(pager){let html=`<button class="btn" ${photoPage===1?'disabled':''} onclick="window.vexaPhotoPage(${photoPage-1})">Previous</button>`;for(let n=1;n<=total;n++)html+=`<button class="btn ${n===photoPage?'primary':''}" onclick="window.vexaPhotoPage(${n})">${n}</button>`;html+=`<button class="btn" ${photoPage===total?'disabled':''} onclick="window.vexaPhotoPage(${photoPage+1})">Next</button>`;pager.innerHTML=html;}
-}
-window.vexaPhotoPage=n=>{photoPage=Math.max(1,n);renderPhotoPage();window.scrollTo({top:0,behavior:'smooth'});};
-
-async function renderVideoPage(){
-  const box=document.getElementById('videoPage'),id=new URLSearchParams(location.search).get('id');let v=VEXA_LOCAL.find(x=>String(x.id)===String(id));
-  if(window.supabaseClient&&id){const {data}=await window.supabaseClient.from('vexa_published_videos').select('*').eq('id',id).maybeSingle();if(data)v=normalizeVideo(data);}
-  if(!v){box.innerHTML='<div class="form"><h1>Video not found</h1><a class="btn" href="index.html">Back</a></div>';return;}v=normalizeVideo(v);
-  const creatorHref=v.uploader_id?`profile.html?id=${encodeURIComponent(v.uploader_id)}`:'#';
-  const badges=[v.duration?`<span class="meta-badge">${vexaEsc(v.duration)}</span>`:'',v.quality?`<span class="meta-badge quality">${vexaEsc(v.quality)}</span>`:''].join('');
-  box.innerHTML=`<div class="player-wrap"><video class="main-player" controls playsinline poster="${vexaEsc(v.thumbnail)}" src="${vexaEsc(v.video||'')}"></video></div><div class="video-info"><h1>${vexaEsc(v.title)}</h1><div class="video-top-meta">${badges}<span class="muted">${formatViews(v.views||0)} views</span><span class="muted upload-age" title="${v.created_at?new Date(v.created_at).toLocaleString():''}">${formatUploadAge(v.created_at)}</span></div><div class="creator-line"><a class="creator-pill" href="${creatorHref}">Creator: ${vexaEsc(v.uploader_name||'Vexa Creator')}</a><span id="followSlot"></span></div><div class="tags">${(v.tags||[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)}</a>`).join('')}</div><p>${vexaEsc(v.description||'')}</p></div><div class="actions"><button class="action-btn" id="likeBtn">${icon.like}<span>Like</span><strong class="action-count">${v.likes||0}</strong></button><button class="action-btn" id="dislikeBtn">${icon.dislike}<span>Dislike</span><strong class="action-count">${v.dislikes||0}</strong></button><button class="action-btn" id="commentJump">${icon.comment}<span>Comments</span><strong class="action-count" id="commentCount">0</strong></button><a class="action-btn" href="${vexaEsc(v.download||v.video||'')}" download>${icon.download}<span>Download</span></a><button class="action-btn" id="saveBtn">${icon.save}<span>Save</span></button><button class="action-btn" id="shareBtn">${icon.share}<span>Share</span></button><a class="action-btn" href="report.html?video=${encodeURIComponent(v.id)}">${icon.report}<span>Report</span></a></div><section class="comment-box collapsed" id="commentsSection"><h2>Comments</h2><form class="comment-form" id="commentForm"><input id="commentInput" maxlength="1000" placeholder="Add a comment..." required><button class="btn primary">Post</button></form><div id="commentList" class="comment-list"></div></section><section class="related-wrap"><h2>Related videos</h2><div class="grid home-grid" id="relatedGrid"></div><div class="homepage-more"><button class="btn" id="moreRelated">See more</button></div></section>`;
-  setupReactions(v.id);setupShare(v);setupSave(v);document.getElementById('commentJump').onclick=()=>{const sec=document.getElementById('commentsSection');sec.classList.toggle('collapsed');if(!sec.classList.contains('collapsed'))sec.scrollIntoView({behavior:'smooth'});};await loadComments(v.id);await setupVideoFollow(v);await loadRelated(v);await incrementView(v.id);
-}
-async function setupVideoFollow(v){const slot=document.getElementById('followSlot');if(!slot||!v.uploader_id||!window.supabaseClient)return;const auth=await window.supabaseClient.auth.getUser();const user=auth.data.user;if(!user||user.id===v.uploader_id)return;const {data}=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',v.uploader_id).eq('follower_id',user.id).maybeSingle();let following=!!data;slot.innerHTML=`<button class="btn follow-btn" id="videoFollowBtn">${following?'Following':'Follow'}</button>`;document.getElementById('videoFollowBtn').onclick=async()=>{const q=following?window.supabaseClient.from('creator_followers').delete().eq('creator_id',v.uploader_id).eq('follower_id',user.id):window.supabaseClient.from('creator_followers').insert({creator_id:v.uploader_id,follower_id:user.id});const {error}=await q;if(error){alert(error.message);return;}following=!following;document.getElementById('videoFollowBtn').textContent=following?'Following':'Follow';};}
-async function incrementView(id){if(window.supabaseClient)await window.supabaseClient.rpc('record_video_view',{p_video_id:Number(id)});}
-async function setupReactions(id){const lb=document.getElementById('likeBtn'),db=document.getElementById('dislikeBtn');if(!lb||!db)return;const send=async reaction=>{const {data,error}=await window.supabaseClient.rpc('set_video_reaction',{p_video_id:Number(id),p_reaction:reaction});if(error){alert(error.message);return;}lb.querySelector('.action-count').textContent=data.likes;db.querySelector('.action-count').textContent=data.dislikes;};lb.onclick=()=>send('like');db.onclick=()=>send('dislike');}
-function setupShare(v){const b=document.getElementById('shareBtn');if(!b)return;b.onclick=async()=>{const url=location.href;if(navigator.share){try{await navigator.share({title:v.title,url});return;}catch(e){}}try{await navigator.clipboard.writeText(url);alert('Link copied.');}catch(e){prompt('Copy this link:',url);}};}
-async function setupSave(v){const b=document.getElementById('saveBtn');if(!b)return;let saved=localStorage.getItem('vexa-saved-'+v.id)==='1';if(window.supabaseClient){const auth=await window.supabaseClient.auth.getUser();if(auth.data.user){const q=await window.supabaseClient.from('saved_videos').select('video_id').eq('video_id',v.id).eq('user_id',auth.data.user.id).maybeSingle();saved=!!q.data;}}b.classList.toggle('primary',saved);b.onclick=async()=>{if(!window.supabaseClient){saved=!saved;localStorage.setItem('vexa-saved-'+v.id,saved?'1':'0');b.classList.toggle('primary',saved);return;}const auth=await window.supabaseClient.auth.getUser();if(!auth.data.user){location.href='login.html';return;}let result;if(saved)result=await window.supabaseClient.from('saved_videos').delete().eq('video_id',v.id).eq('user_id',auth.data.user.id);else result=await window.supabaseClient.from('saved_videos').insert({video_id:v.id,user_id:auth.data.user.id});if(result.error){alert(result.error.message);return;}saved=!saved;b.classList.toggle('primary',saved);};}
-async function loadComments(videoId){
-  const list=document.getElementById('commentList'),form=document.getElementById('commentForm');if(!list||!form)return;
-  const render=rows=>{list.innerHTML=rows?.length?rows.map(c=>`<article class="comment"><div class="comment-head"><strong>${vexaEsc(c.display_name||c.username||c.guest_name||'Guest')}</strong><span class="muted">${new Date(c.created_at).toLocaleDateString()}</span></div><div>${vexaEsc(c.body||'')}</div></article>`).join(''):'<p class="muted">No comments yet.</p>';const count=document.getElementById('commentCount');if(count)count.textContent=String(rows?.length||0);};
-  if(!window.supabaseClient){render([]);return;}
-  const {data,error}=await window.supabaseClient.from('video_comments').select('*').eq('video_id',videoId).eq('status','approved').order('created_at',{ascending:false}).limit(100);
-  let rows=error?[]:(data||[]);
-  const ids=[...new Set(rows.filter(x=>x.user_id).map(x=>x.user_id))];
-  if(ids.length){const p=await window.supabaseClient.from('profiles').select('id,username,display_name').in('id',ids);const map=Object.fromEntries((p.data||[]).map(x=>[x.id,x]));rows=rows.map(x=>({...x,...(map[x.user_id]||{})}));}
-  render(rows);
-  form.onsubmit=async e=>{e.preventDefault();const input=document.getElementById('commentInput'),body=input.value.trim();if(!body)return;const {data:{user}}=await window.supabaseClient.auth.getUser();let row={video_id:videoId,user_id:user?.id||null,body,status:'pending'};if(!user){let guest=sessionStorage.getItem('vexa-guest-name');if(!guest){guest='Guest-'+Math.random().toString(36).slice(2,7).toUpperCase();sessionStorage.setItem('vexa-guest-name',guest);}row.guest_name=guest;}const {error}=await window.supabaseClient.from('video_comments').insert(row);if(error)alert(error.message);else{input.value='';alert('Comment submitted for review.');}};
-}
-async function loadRelated(v){
-  const grid=document.getElementById('relatedGrid'),more=document.getElementById('moreRelated');if(!grid)return;let list=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('vexa_published_videos').select('*').neq('id',v.id).limit(300);if(data)list=data.map(normalizeVideo);}if(!list.length)list=allVideos.filter(x=>String(x.id)!==String(v.id));
-  const same=list.filter(x=>(v.tags||[]).some(t=>(x.tags||[]).includes(t))||x.category===v.category);const rest=list.filter(x=>!same.includes(x));relatedPool=[...same,...rest];relatedShown=0;const render=()=>{grid.innerHTML=relatedPool.slice(0,relatedShown).map(createCard).join('')||'<p class="muted">No related videos yet.</p>';setupPreviews();more.hidden=relatedShown>=relatedPool.length;};relatedShown=Math.min(8,relatedPool.length);render();more.onclick=()=>{relatedShown=Math.min(relatedShown+8,relatedPool.length);render();};
-}
-async function loadCommunity(){
-  const wrap=document.getElementById('communityProfiles');if(!wrap)return;
-  const countrySel=document.getElementById('communityCountry'),sortSel=document.getElementById('communitySort'),tagSel=document.getElementById('communityTag');
-  let creators=[];
-  if(window.supabaseClient){
-    const {data,error}=await window.supabaseClient.rpc('vexa_public_creators');
-    if(!error&&Array.isArray(data)) creators=data;
-  }
-  if(!creators.length){
-    wrap.innerHTML='<p class="muted">No public creator profiles yet.</p>';return;
-  }
-  if(window.supabaseClient){
-    creators=await Promise.all(creators.map(async c=>{
-      const [v,p]=await Promise.all([
-        window.supabaseClient.from('vexa_published_videos').select('id,title,thumbnail_url,created_at').eq('uploader_id',c.id).order('created_at',{ascending:false}).limit(4),
-        window.supabaseClient.from('vexa_published_photos').select('id,title,image_url,thumbnail_url,created_at').eq('uploader_id',c.id).order('created_at',{ascending:false}).limit(4)
-      ]);
-      const preview=[...(v.data||[]).map(x=>({...x,type:'video'})),...(p.data||[]).map(x=>({...x,type:'photo'}))].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-      c.preview_posts=preview.slice(0,4);return c;
-    }));
-  }
-  const countries=[...new Set(creators.map(x=>x.country).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  countrySel.innerHTML='<option value="">Country</option>'+countries.map(c=>`<option value="${vexaEsc(c)}">${vexaEsc(c)}</option>`).join('');
-  const tags=[...new Set(creators.flatMap(x=>Array.isArray(x.tags)?x.tags:[]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  tagSel.innerHTML='<option value="">Tags</option>'+tags.map(t=>`<option value="${vexaEsc(t)}">${vexaEsc(t)}</option>`).join('');
-  const render=()=>{
-    let list=creators.slice();
-    if(countrySel.value)list=list.filter(x=>String(x.country||'')===countrySel.value);
-    if(tagSel.value)list=list.filter(x=>(x.tags||[]).includes(tagSel.value));
-    if(sortSel.value==='recent')list.sort((a,b)=>new Date(b.latest_post||0)-new Date(a.latest_post||0));
-    else if(sortSel.value==='posts')list.sort((a,b)=>Number(b.posts||0)-Number(a.posts||0));
-    else list.sort((a,b)=>Number(b.views||0)-Number(a.views||0));
-    wrap.innerHTML=list.map(c=>{
-      const name=c.display_name||c.username||'Creator';
-      const avatar=c.avatar_url?`<img src="${vexaEsc(c.avatar_url)}" alt="" loading="lazy">`:`<span>${vexaEsc(name.charAt(0).toUpperCase())}</span>`;
-      const items=(c.preview_posts||[]).slice(0,4);
-      return `<article class="community-profile-card"><a class="community-profile-head" href="profile.html?id=${encodeURIComponent(c.id)}"><div class="community-avatar">${avatar}</div><strong>${vexaEsc(name)}</strong><span class="community-post-count">${Number(c.posts||0).toLocaleString()} posts</span></a>${c.bio?`<p class="community-bio">${vexaEsc(c.bio)}</p>`:''}<div class="community-preview-grid">${items.map(item=>`<a href="${item.type==='video'?'video.html?id='+encodeURIComponent(item.id):vexaEsc(item.image_url||'')}" ${item.type==='photo'?'target="_blank" rel="noopener"':''}><img src="${vexaEsc(item.thumbnail_url||item.image_url||'')}" alt="" loading="lazy"><span>${vexaEsc(item.title||'')}</span></a>`).join('')}</div></article>`;
-    }).join('')||'<p class="muted">No creators match these filters.</p>';
-  };
-  countrySel.onchange=render;sortSel.onchange=render;tagSel.onchange=render;render();
-}
-
-function setupAdultAgreement(){
-  const path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
-  const excluded=['login.html','signup.html','forgot-password.html','reset-password.html','admin-login.html','admin.html','privacy.html','terms.html','dmca.html'];
-  if(excluded.includes(path)||document.getElementById('adultAgreement'))return;
-  if(localStorage.getItem('vexa-adult-agreement')==='accepted')return;
-  const modal=document.createElement('div');modal.id='adultAgreement';modal.className='adult-gate';modal.innerHTML=`<div class="adult-gate-card" role="dialog" aria-modal="true" aria-labelledby="adultGateTitle"><div class="adult-gate-logo">Vexa</div><h2 id="adultGateTitle">18+ Agreement</h2><p><u>Vexa</u> is intended for an adult audience only (18+). By using it, you accept the <u>conditions</u>.</p><h3>Please choose 1 or more:</h3><div class="adult-categories"><label><input type="checkbox" value="straight"><span>⚥</span><b>Straight</b></label><label><input type="checkbox" value="men"><span>♂</span><b>Only Men</b></label><label><input type="checkbox" value="girls"><span>♀</span><b>Only Girls</b></label><label><input type="checkbox" value="trans"><span>⚧</span><b>Trans</b></label></div><button id="adultEnter" class="adult-enter" disabled>ENTER</button></div>`;
-  document.body.appendChild(modal);
-  const enter=modal.querySelector('#adultEnter');
-  modal.querySelectorAll('input[type=checkbox]').forEach(x=>x.onchange=()=>{enter.disabled=!modal.querySelector('input:checked');});
-  enter.onclick=()=>{localStorage.setItem('vexa-adult-agreement','accepted');localStorage.setItem('vexa-adult-categories',JSON.stringify([...modal.querySelectorAll('input:checked')].map(x=>x.value)));modal.remove();};
-}
-
-async function loadTags(){
-  const cloud=document.getElementById('tagCloud');let tags=[];if(window.supabaseClient){const {data}=await window.supabaseClient.from('vexa_published_videos').select('tags').limit(500);if(data)data.forEach(v=>(Array.isArray(v.tags)?v.tags:[]).forEach(t=>tags.push(String(t))));}if(!tags.length)VEXA_LOCAL.forEach(v=>(v.tags||[]).forEach(t=>tags.push(String(t))));const counts={};tags.forEach(t=>counts[t]=(counts[t]||0)+1);const unique=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));const selected=new URLSearchParams(location.search).get('tag');cloud.innerHTML=unique.map(t=>`<a class="tag-link" href="videos.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)} <span class="muted">${counts[t]}</span></a>`).join('')||'<p class="muted">No tags yet.</p>';if(selected)document.querySelectorAll('.tag-link').forEach(a=>{if(a.textContent.toLowerCase().includes(selected.toLowerCase()))a.style.background='var(--accent)';});
-}
-async function renderCreatorPage(){
-  const box=document.getElementById('creatorPage'),id=new URLSearchParams(location.search).get('id');
-  if(!id){box.innerHTML='<p class="muted">Profile not found.</p>';return;}
-  if(!window.supabaseClient){box.innerHTML='<p class="muted">Supabase is not connected.</p>';return;}
-
-  const [{data:profile,error:profileError},{data:videoRows},{data:photoRows}]=await Promise.all([
-    window.supabaseClient.from('vexa_public_profiles').select('*').eq('id',id).maybeSingle(),
-    window.supabaseClient.from('videos').select('*').eq('uploader_id',id).eq('status','published').order('created_at',{ascending:false}).limit(300),
-    window.supabaseClient.from('photos').select('*').eq('uploader_id',id).eq('status','published').order('created_at',{ascending:false}).limit(300)
-  ]);
-  if(profileError){box.innerHTML=`<p class="muted">${vexaEsc(profileError.message)}</p>`;return;}
-  if(!profile){box.innerHTML='<p class="muted">Profile not found.</p>';return;}
-
-  const videos=(videoRows||[]).map(normalizeVideo);
-  const photos=(photoRows||[]).map(p=>({...p,_type:'photo'}));
-  const posts=[...videos.map(v=>({...v,_type:'video'})),...photos].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-  const name=profile.display_name||profile.username||'Creator';
-  const handle=profile.username?`@${profile.username}`:'';
-  const country=profile.country||'';
-  const avatar=profile.avatar_url||'';
-  const banner=profile.banner_url||'';
-  const creator=profile.is_creator===true;
-  const totalViews=videos.reduce((sum,v)=>sum+Number(v.views||0),0);
-
-  let followerCount=0,subscribed=false,currentUser=null;
-  const count=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});
-  if(!count.error)followerCount=Number(count.data||0);
-  const auth=await window.supabaseClient.auth.getUser();currentUser=auth.data.user||null;
-  if(currentUser&&currentUser.id!==id){
-    const f=await window.supabaseClient.from('creator_followers').select('creator_id').eq('creator_id',id).eq('follower_id',currentUser.id).maybeSingle();
-    subscribed=!!f.data;
-  }
-
-  const avatarMarkup=avatar
-    ? `<img class="creator-avatar-img" src="${vexaEsc(avatar)}" alt="">`
-    : `<div class="creator-avatar-fallback">${vexaEsc(name.slice(0,1).toUpperCase())}</div>`;
-  const verify=creator&&profile.creator_verified?'<span class="verified-badge" title="Verified Creator">✓</span>':'';
-  const bannerMarkup=banner?`<div class="creator-cover"><img src="${vexaEsc(banner)}" alt=""></div>`:'';
-  const subscribeMarkup=creator&&currentUser&&currentUser.id!==id
-    ? `<button class="btn subscribe-btn" id="subscribeBtn">${subscribed?'Subscribed':'Subscribe'} ${followerCount.toLocaleString()}</button>`
-    : creator ? `<span class="creator-subscriber-count">${followerCount.toLocaleString()} subscribers</span>` : '';
-
-  box.innerHTML=`
-    <section class="creator-profile">
-      ${bannerMarkup}
-      <div class="creator-identity-row">
-        <div class="creator-avatar">${avatarMarkup}</div>
-        <div class="creator-identity">
-          <div class="creator-name-row"><h1>${vexaEsc(name)}</h1>${verify}</div>
-          ${handle?`<div class="creator-handle">${vexaEsc(handle)}</div>`:''}
-          ${country?`<div class="creator-country">${vexaEsc(country)}</div>`:''}
-        </div>
-        <div class="creator-stat-actions">
-          <span class="creator-view-count">${totalViews.toLocaleString()} views</span>
-          ${subscribeMarkup}
-        </div>
-      </div>
-      <nav class="creator-content-nav" aria-label="Creator content">
-        <button class="creator-tab active" type="button" data-content-tab="posts">Posts</button>
-        <button class="creator-tab" type="button" data-content-tab="videos">Videos</button>
-        <button class="creator-tab" type="button" data-content-tab="photos">Photos</button>
-      </nav>
-    </section>
-    <section class="creator-content-section">
-      <div id="creatorContentGrid" class="grid home-grid"></div>
-    </section>`;
-
-  const grid=document.getElementById('creatorContentGrid');
-  const renderItems=(items,type)=>{
-    if(type==='photos'){
-      grid.className='photo-grid creator-content-grid';
-      grid.innerHTML=items.length?items.map(p=>`<article class="photo-card"><a href="${vexaEsc(p.image_url||p.thumbnail_url||'')}" target="_blank" rel="noopener"><img src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt=""></a><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">Uploaded ${formatUploadAge(p.created_at).replace(/^Uploaded /,'')}</div></div></article>`).join(''):'<p class="muted">No photos yet.</p>';
-    }else if(type==='posts'){
-      grid.className='grid home-grid creator-content-grid creator-posts-grid';
-      grid.innerHTML=items.length?items.map(item=>item._type==='photo'?`<article class="card photo-post-card"><a href="${vexaEsc(item.image_url||item.thumbnail_url||'')}" target="_blank" rel="noopener"><div class="thumb"><img class="thumb-img" src="${vexaEsc(item.thumbnail_url||item.image_url||'')}" alt=""></div><div class="card-body"><h3>${vexaEsc(item.title||'Untitled')}</h3><div class="card-meta">Photo · ${formatUploadAge(item.created_at)}</div></div></a></article>`:createCard(item)).join(''):'<p class="muted">No posts yet.</p>';
-      setupPreviews();
-    }else{
-      grid.className='grid home-grid creator-content-grid';
-      grid.innerHTML=items.length?items.map(createCard).join(''):'<p class="muted">No videos yet.</p>';
-      setupPreviews();
-    }
-  };
-  const tabs={posts,video:videos,photos};
-  renderItems(posts,'posts');
-  document.querySelectorAll('.creator-tab').forEach(tab=>{
-    tab.onclick=()=>{
-      document.querySelectorAll('.creator-tab').forEach(t=>t.classList.remove('active'));
-      tab.classList.add('active');
-      const key=tab.dataset.contentTab;
-      if(key==='photos')renderItems(photos,'photos');
-      else if(key==='videos')renderItems(videos,'videos');
-      else renderItems(posts,'posts');
-    };
-  });
-
-  if(window.supabaseClient&&id)window.supabaseClient.rpc('record_creator_profile_view',{p_creator_id:id}).catch(()=>{});
-  const sb=document.getElementById('subscribeBtn');
-  if(sb)sb.onclick=async()=>{
-    if(!currentUser)return location.href='login.html';
-    const q=subscribed
-      ? window.supabaseClient.from('creator_followers').delete().eq('creator_id',id).eq('follower_id',currentUser.id)
-      : window.supabaseClient.from('creator_followers').insert({creator_id:id,follower_id:currentUser.id});
-    const {error}=await q;if(error){alert(error.message);return;}
-    subscribed=!subscribed;
-    const next=await window.supabaseClient.rpc('vexa_follow_counts',{p_creator_id:id});
-    followerCount=!next.error?Number(next.data||0):followerCount+(subscribed?1:-1);
-    sb.textContent=`${subscribed?'Subscribed':'Subscribe'} ${followerCount.toLocaleString()}`;
-  };
-}
-
-
-/* VEXA MASTER CORRECTION: profile, photos, homepage and account-menu routing. */
-function setupAccountMenu(){
-  const actions=document.querySelector('.header-actions'); if(!actions)return;
-  let account=document.getElementById('accountBtn');
-  let container=document.getElementById('profileDropdown');
-  if(!container){
-    container=document.createElement('div');container.id='profileDropdown';container.className='profile-container';container.hidden=true;
-    container.innerHTML=`<button class="profile-trigger" id="profileTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu"><span class="profile-avatar-fallback" aria-hidden="true"></span><img src="" alt="User Profile" class="avatar" hidden></button><div class="dropdown-menu" id="accountMenu"><div class="user-summary"><p class="summary-name" id="summaryName">Account</p><p class="summary-email" id="summaryEmail"></p></div><ul class="menu-links"><li><a href="profile.html" id="accountProfile">My Profile</a></li><li><a href="saved.html">Saved</a></li><li><a href="following.html">Following</a></li><li><a href="account.html#notifications">Notifications</a></li><li><a href="account.html#settings">Account Settings</a></li><li><a href="privacy.html">Security &amp; Privacy</a></li><li><a href="creator-apply.html" id="applyCreatorLink">Apply to Become a Creator</a></li><li><a href="creator-dashboard.html" id="creatorDashboardLink" hidden>Creator Dashboard</a></li><li class="toggle-item"><span>Dark Mode</span><label class="switch"><input type="checkbox" id="themeToggle" aria-label="Dark Mode"><span class="slider"></span></label></li></ul><div class="divider"></div><div class="logout-section"><a href="#logout" class="logout-btn" id="accountLogout">Log Out</a></div></div>`;
-    actions.prepend(container);
-  }
-  if(!account){account=document.createElement('a');account.id='accountBtn';account.className='header-account-btn';account.href='login.html';account.title='Log in';account.setAttribute('aria-label','Log in');account.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>';actions.prepend(account);}
-  const trigger=container.querySelector('#profileTrigger');
-  trigger.onclick=e=>{e.stopPropagation();const open=container.classList.toggle('active');trigger.setAttribute('aria-expanded',String(open));};
-  const themeToggle=container.querySelector('#themeToggle');if(themeToggle)themeToggle.onchange=()=>setTheme(themeToggle.checked?'dark':'light');
-  if(!container.dataset.bound){document.addEventListener('click',e=>{if(!container.contains(e.target)){container.classList.remove('active');trigger.setAttribute('aria-expanded','false');}},{passive:true});container.dataset.bound='1';}
-  applySavedPreferences();
-}
-
-function updateAuthUI(user){
-  const path=location.pathname.split('/').pop()||'index.html'; if(path==='admin-login.html'||path==='admin.html')return;
-  const account=document.getElementById('accountBtn'),container=document.getElementById('profileDropdown'),menu=document.getElementById('accountMenu'),nameEl=document.getElementById('summaryName'),emailEl=document.getElementById('summaryEmail'),avatarEl=document.querySelector('#profileDropdown .avatar'),profileLink=document.getElementById('accountProfile'),dashboard=document.getElementById('creatorDashboardLink'),apply=document.getElementById('applyCreatorLink');
-  if(account){account.hidden=!!user;account.href='login.html';}
-  if(container){container.hidden=!user;if(!user)container.classList.remove('active');}
-  if(menu)menu.hidden=!user;
-  if(nameEl)nameEl.textContent=user?(user.user_metadata?.username||user.user_metadata?.display_name||user.email?.split('@')[0]||'Account'):'Account';
-  if(emailEl)emailEl.textContent=user?.email||'';
-  if(avatarEl){const url=user?.user_metadata?.avatar_url||user?.user_metadata?.picture||'';avatarEl.hidden=!url;if(url)avatarEl.src=url;}
-  if(profileLink){profileLink.hidden=!user;if(user)profileLink.href='profile.html?id='+encodeURIComponent(user.id);}
-  if(user&&window.supabaseClient){window.supabaseClient.rpc('is_vexa_creator').then(({data,error})=>{const creator=!error&&data===true;if(dashboard)dashboard.hidden=!creator;if(apply)apply.hidden=creator;}).catch(()=>{if(dashboard)dashboard.hidden=true;if(apply)apply.hidden=false;});}
-  else{if(dashboard)dashboard.hidden=true;if(apply)apply.hidden=true;}
-  const logout=document.getElementById('accountLogout');if(logout){logout.hidden=!user;logout.onclick=async e=>{e.preventDefault();const {error}=await window.supabaseClient.auth.signOut();if(error)alert(error.message);else location.href='index.html';};}
-  syncUserPreferences(user);
-}
-
-async function renderHome(){
-  const main=document.querySelector('.main');if(!main)return;
-  main.innerHTML='<section class="home-section"><div class="section-title"><h1>Videos Being Watched</h1><button class="section-search-btn" id="homeSearchBtn" type="button" aria-label="Search videos" title="Search videos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg></button></div><div class="home-search" id="homeSearch" hidden><form id="homeSearchForm"><input id="homeSearchInput" type="search" placeholder="Search videos..." autocomplete="off"><button class="btn primary" type="submit">Search</button></form></div><div id="home-watched" class="grid home-grid"></div><div id="homePagination" class="pagination"></div></section><section class="home-section"><div class="section-title"><h1>Recent Photos</h1></div><div id="home-recent-photos" class="photo-grid"></div><div id="homePhotoPagination" class="pagination"></div></section><section class="home-section"><div class="section-title"><h1>Trending Photos</h1></div><div id="home-trending-photos" class="photo-grid"></div></section>';
+  main.innerHTML='<section class="home-section" id="homeVideosSection"><div class="section-title"><h1>Videos Being Watched</h1><button class="section-search-btn" id="homeSearchBtn" type="button" aria-label="Search videos" title="Search videos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg></button></div><div class="home-search" id="homeSearch" hidden><form id="homeSearchForm"><input id="homeSearchInput" type="search" placeholder="Search videos..." autocomplete="off"><button class="btn primary" type="submit">Search</button></form></div><div id="home-watched" class="grid home-grid"></div><div id="homePagination" class="pagination"></div></section><section class="home-section" id="homePhotosSection"><div class="section-title"><h1>Recent Photos</h1></div><div id="home-recent-photos" class="photo-grid home-photo-grid"></div><div id="homePhotoPagination" class="pagination"></div></section>';
   setupHomeSearch();
   let watched=window.vexaHomePageData||allVideos;
-  if(!window.vexaHomePageData&&window.supabaseClient){try{const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE-1);if(Array.isArray(data)&&data.length){watched=data.map(normalizeVideo);window.vexaHomeCount=count||0;} }catch(e){}}
-  const wg=document.getElementById('home-watched');if(wg){wg.innerHTML=watched.map(createCard).join('')||'<p class="muted">No videos found.</p>';const total=Math.max(1,Math.ceil((window.vexaHomeCount||watched.length)/PAGE_SIZE));const hp=document.getElementById('homePagination');if(hp){let h=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaHomePage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)h+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaHomePage(${n})">${n}</button>`;h+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaHomePage(${currentPage+1})">Next</button>`;hp.innerHTML=h;}}
+  if(!window.vexaHomePageData&&window.supabaseClient){try{const {data,count}=await window.supabaseClient.from('vexa_published_videos').select('*',{count:'exact'}).order('created_at',{ascending:false}).range((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE-1);if(Array.isArray(data)&&data.length){watched=data.map(normalizeVideo);window.vexaHomeCount=count||0;}}catch(e){}}
+  const wg=document.getElementById('home-watched');
+  if(wg){wg.innerHTML=watched.map(createCard).join('')||'<p class="muted">No videos found.</p>';const total=Math.max(1,Math.ceil((window.vexaHomeCount||watched.length)/PAGE_SIZE));const hp=document.getElementById('homePagination');if(hp){let h=`<button class="btn" ${currentPage===1?'disabled':''} onclick="window.vexaHomePage(${currentPage-1})">Previous</button>`;for(let n=1;n<=total;n++)h+=`<button class="btn ${n===currentPage?'primary':''}" onclick="window.vexaHomePage(${n})">${n}</button>`;h+=`<button class="btn" ${currentPage===total?'disabled':''} onclick="window.vexaHomePage(${currentPage+1})">Next</button>`;hp.innerHTML=h;}}
   await loadHomePhotos();setupPreviews();
 }
-window.vexaHomePage=async n=>{currentPage=Math.max(1,n);window.vexaHomePageData=null;await renderHome();window.scrollTo({top:0,behavior:'smooth'});};
+window.vexaHomePage=async n=>{currentPage=Math.max(1,n);window.vexaHomePageData=null;document.getElementById('homePhotosSection')?.classList.toggle('is-hidden',currentPage>1);await renderHome();document.getElementById('homePhotosSection')?.classList.toggle('is-hidden',currentPage>1);window.scrollTo({top:0,behavior:'smooth'});};
 
-photoPage=1;
-function demoPhotos(){return Array.from({length:40},(_,i)=>({id:`demo-${i+1}`,title:`Sample Photo ${i+1}`,image_url:`https://placehold.co/900x650/f0f0f0/222?text=Vexa+Photo+${i+1}`,thumbnail_url:`https://placehold.co/900x650/f0f0f0/222?text=Vexa+Photo+${i+1}`,views:300+i*41,created_at:new Date(Date.now()-i*86400000).toISOString(),featured:i<8,trending:i%3===0}));}
+photoPage=1;const PHOTO_PAGE_SIZE=20;
+function demoPhotos(){return Array.from({length:40},(_,i)=>({id:`demo-${i+1}`,title:`Sample Photo ${i+1}`,image_url:`https://placehold.co/900x650/f0f0f0/222?text=Vexa+Photo+${i+1}`,thumbnail_url:`https://placehold.co/900x650/f0f0f0/222?text=Vexa+Photo+${i+1}`,views:300+i*41,likes:Math.max(0,80-i),dislikes:Math.max(0,10-Math.floor(i/5)),created_at:new Date(Date.now()-i*86400000).toISOString(),featured:i<8,trending:i%3===0}));}
 async function fetchPhotos(){let rows=[];if(window.supabaseClient){const q=await window.supabaseClient.from('vexa_published_photos').select('*').order('created_at',{ascending:false}).limit(500);if(!q.error&&Array.isArray(q.data))rows=q.data;}return rows.length?rows:demoPhotos();}
-function photoCard(p){return `<article class="card photo-card"><a href="photo.html?id=${encodeURIComponent(p.id)}"><div class="thumb"><img class="thumb-img" src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt="${vexaEsc(p.title||'Photo')}" loading="lazy"></div><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">${formatViews(p.views||0)} views · ${formatUploadAge(p.created_at)}</div></div></a></article>`;}
-async function loadHomePhotos(){const rows=await fetchPhotos();const recent=document.getElementById('home-recent-photos'),trend=document.getElementById('home-trending-photos');if(!recent||!trend)return;const recentRows=rows.slice(0,PHOTO_PAGE_SIZE);const trendingRows=[...rows].sort((a,b)=>Number(b.views||0)-Number(a.views||0)).slice(0,12);recent.innerHTML=recentRows.map(photoCard).join('');trend.innerHTML=trendingRows.map(photoCard).join('');const p=document.getElementById('homePhotoPagination');if(p){const total=Math.max(1,Math.ceil(rows.length/PHOTO_PAGE_SIZE));let h=`<button class="btn" disabled>Previous</button>`;for(let n=1;n<=total;n++)h+=`<button class="btn ${n===1?'primary':''}" onclick="window.vexaHomePhotoPage(${n})">${n}</button>`;h+=`<button class="btn" ${total===1?'disabled':''} onclick="window.vexaHomePhotoPage(2)">Next</button>`;p.innerHTML=h;}window._vexaHomePhotos=rows;}
-window.vexaHomePhotoPage=async n=>{const rows=window._vexaHomePhotos||await fetchPhotos();const total=Math.max(1,Math.ceil(rows.length/PHOTO_PAGE_SIZE));const page=Math.max(1,Math.min(n,total));const start=(page-1)*PHOTO_PAGE_SIZE;const grid=document.getElementById('home-recent-photos');if(grid)grid.innerHTML=rows.slice(start,start+PHOTO_PAGE_SIZE).map(photoCard).join('');const p=document.getElementById('homePhotoPagination');if(p){let h=`<button class="btn" ${page===1?'disabled':''} onclick="window.vexaHomePhotoPage(${page-1})">Previous</button>`;for(let i=1;i<=total;i++)h+=`<button class="btn ${i===page?'primary':''}" onclick="window.vexaHomePhotoPage(${i})">${i}</button>`;h+=`<button class="btn" ${page===total?'disabled':''} onclick="window.vexaHomePhotoPage(${page+1})">Next</button>`;p.innerHTML=h;}};
+function photoCard(p){return `<article class="card photo-card"><a href="photo.html?id=${encodeURIComponent(p.id)}"><div class="thumb"><img class="thumb-img" src="${vexaEsc(p.thumbnail_url||p.image_url||'')}" alt="${vexaEsc(p.title||'Photo')}" loading="lazy"></div><div class="card-body"><h3>${vexaEsc(p.title||'Untitled')}</h3><div class="card-meta">${formatViews(p.views||0)} views · <span class="photo-card-likes">${formatViews(p.likes||0)} likes</span> · ${formatUploadAge(p.created_at)}</div></div></a></article>`;}
+async function loadHomePhotos(){const rows=await fetchPhotos();const recent=document.getElementById('home-recent-photos');if(!recent)return;recent.innerHTML=rows.slice(0,6).map(photoCard).join('')||'<p class="muted">No published photos yet.</p>';window._vexaHomePhotos=rows;const p=document.getElementById('homePhotoPagination');if(p){const total=Math.max(1,Math.ceil(rows.length/PHOTO_PAGE_SIZE));let h=`<button class="btn" disabled>Previous</button>`;for(let n=1;n<=total;n++)h+=`<button class="btn ${n===1?'primary':''}" onclick="window.vexaHomePhotoPage(${n})">${n}</button>`;h+=`<button class="btn" ${total===1?'disabled':''} onclick="window.vexaHomePhotoPage(2)">Next</button>`;p.innerHTML=h;}}
+window.vexaHomePhotoPage=async n=>{const rows=window._vexaHomePhotos||await fetchPhotos();const total=Math.max(1,Math.ceil(rows.length/PHOTO_PAGE_SIZE));const page=Math.max(1,Math.min(n,total));const start=(page-1)*PHOTO_PAGE_SIZE;document.getElementById('homeVideosSection')?.classList.toggle('is-hidden',page>1);document.getElementById('homePhotosSection')?.classList.remove('is-hidden');const grid=document.getElementById('home-recent-photos');if(grid)grid.innerHTML=rows.slice(start,start+PHOTO_PAGE_SIZE).map(photoCard).join('');const p=document.getElementById('homePhotoPagination');if(p){let h=`<button class="btn" ${page===1?'disabled':''} onclick="window.vexaHomePhotoPage(${page-1})">Previous</button>`;for(let i=1;i<=total;i++)h+=`<button class="btn ${i===page?'primary':''}" onclick="window.vexaHomePhotoPage(${i})">${i}</button>`;h+=`<button class="btn" ${page===total?'disabled':''} onclick="window.vexaHomePhotoPage(${page+1})">Next</button>`;p.innerHTML=h;}window.scrollTo({top:0,behavior:'smooth'});};
 
 async function loadPhotosPage(){const grid=document.getElementById('photoGrid');if(!grid)return;photoList=await fetchPhotos();photoPage=1;const main=document.querySelector('.main');main.innerHTML='<section class="home-section"><div class="section-title"><h1>Recent Photos</h1></div><div id="photoGrid" class="photo-grid"></div><div id="photoPagination" class="pagination"></div></section><section class="home-section"><div class="section-title"><h1>Trending Photos</h1></div><div id="trendingPhotoGrid" class="photo-grid"></div></section>';renderPhotoPage();document.getElementById('trendingPhotoGrid').innerHTML=[...photoList].sort((a,b)=>Number(b.views||0)-Number(a.views||0)).slice(0,12).map(photoCard).join('');}
 function renderPhotoPage(){const grid=document.getElementById('photoGrid'),pager=document.getElementById('photoPagination');if(!grid)return;const total=Math.max(1,Math.ceil(photoList.length/PHOTO_PAGE_SIZE));photoPage=Math.min(photoPage,total);const start=(photoPage-1)*PHOTO_PAGE_SIZE;grid.innerHTML=photoList.slice(start,start+PHOTO_PAGE_SIZE).map(photoCard).join('')||'<p class="muted">No published photos yet.</p>';if(pager){let h=`<button class="btn" ${photoPage===1?'disabled':''} onclick="window.vexaPhotoPage(${photoPage-1})">Previous</button>`;for(let n=1;n<=total;n++)h+=`<button class="btn ${n===photoPage?'primary':''}" onclick="window.vexaPhotoPage(${n})">${n}</button>`;h+=`<button class="btn" ${photoPage===total?'disabled':''} onclick="window.vexaPhotoPage(${photoPage+1})">Next</button>`;pager.innerHTML=h;}}
 window.vexaPhotoPage=n=>{photoPage=Math.max(1,n);renderPhotoPage();window.scrollTo({top:0,behavior:'smooth'});};
 
-async function renderPhotoPageDetail(){const box=document.getElementById('photoPage'),id=new URLSearchParams(location.search).get('id');if(!box||!id)return;let p=null;if(window.supabaseClient){const q=await window.supabaseClient.from('vexa_published_photos').select('*').eq('id',id).maybeSingle();if(!q.error)p=q.data;}if(!p){p=demoPhotos().find(x=>String(x.id)===String(id));}if(!p){box.innerHTML='<div class="form"><h1>Photo not found</h1><a class="btn" href="photos.html">Back to Photos</a></div>';return;}box.innerHTML=`<article class="photo-detail"><div class="photo-detail-image"><img src="${vexaEsc(p.image_url||p.thumbnail_url||'')}" alt="${vexaEsc(p.title||'Photo')}"></div><div class="photo-detail-info"><h1>${vexaEsc(p.title||'Untitled')}</h1><div class="video-top-meta"><span class="muted">${formatViews(p.views||0)} views</span><span class="muted">${formatUploadAge(p.created_at)}</span></div>${p.description?`<p>${vexaEsc(p.description)}</p>`:''}<div class="tags">${(Array.isArray(p.tags)?p.tags:[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)}</a>`).join('')}</div><a class="btn" href="photos.html">Back to Photos</a></div></article>`;}
+async function renderPhotoPageDetail(){
+  const box=document.getElementById('photoPage'),id=new URLSearchParams(location.search).get('id');if(!box||!id)return;
+  let p=null;if(window.supabaseClient){const q=await window.supabaseClient.from('vexa_published_photos').select('*').eq('id',id).maybeSingle();if(!q.error)p=q.data;}if(!p)p=demoPhotos().find(x=>String(x.id)===String(id));
+  if(!p){box.innerHTML='<div class="form"><h1>Photo not found</h1><a class="btn" href="photos.html">Back to Photos</a></div>';return;}
+  const image=p.image_url||p.thumbnail_url||'';
+  box.innerHTML=`<article class="photo-detail"><div class="photo-detail-image"><img src="${vexaEsc(image)}" alt="${vexaEsc(p.title||'Photo')}"></div><div class="photo-detail-info"><h1>${vexaEsc(p.title||'Untitled')}</h1><div class="video-top-meta"><span class="muted">${formatViews(p.views||0)} views</span><span class="muted upload-age">${formatUploadAge(p.created_at)}</span></div>${p.description?`<p>${vexaEsc(p.description)}</p>`:''}<div class="tags">${(Array.isArray(p.tags)?p.tags:[]).map(t=>`<a class="tag-link" href="tags.html?tag=${encodeURIComponent(t)}">${vexaEsc(t)}</a>`).join('')}</div></div><div class="actions photo-actions"><button class="action-btn" id="photoLikeBtn">${icon.like}<span>Like</span><strong class="action-count">${formatViews(p.likes||0)}</strong></button><button class="action-btn" id="photoDislikeBtn">${icon.dislike}<span>Dislike</span><strong class="action-count">${formatViews(p.dislikes||0)}</strong></button><button class="action-btn" id="photoCommentBtn">${icon.comment}<span>Comments</span></button><a class="action-btn" href="${vexaEsc(image)}" download>${icon.download}<span>Download</span></a><button class="action-btn" id="photoSaveBtn">${icon.save}<span>Save</span></button><button class="action-btn" id="photoShareBtn">${icon.share}<span>Share</span></button><a class="action-btn" href="report.html?photo=${encodeURIComponent(p.id)}">${icon.report}<span>Report</span></a></div><section class="related-wrap"><h2>Trending Photos</h2><div class="photo-grid" id="photoTrendingGrid"></div></section><a class="btn" href="photos.html">Back to Photos</a></article>`;
+  await setupPhotoReactions(p.id);
+  setupPhotoShare(p);setupPhotoSave(p);
+  document.getElementById('photoCommentBtn').onclick=()=>alert('Photo comments are not available on this photo yet.');
+  const trend=await fetchPhotos();document.getElementById('photoTrendingGrid').innerHTML=[...trend].sort((a,b)=>Number(b.views||0)-Number(a.views||0)).filter(x=>String(x.id)!==String(p.id)).slice(0,12).map(photoCard).join('')||'<p class="muted">No trending photos yet.</p>';
+}
+async function setupPhotoReactions(id){const lb=document.getElementById('photoLikeBtn'),db=document.getElementById('photoDislikeBtn');if(!lb||!db||!window.supabaseClient)return;const send=async reaction=>{const {data,error}=await window.supabaseClient.rpc('set_photo_reaction',{p_photo_id:Number(id),p_reaction:reaction});if(error){alert(error.message);return;}lb.querySelector('.action-count').textContent=formatViews(data.likes);db.querySelector('.action-count').textContent=formatViews(data.dislikes);document.querySelectorAll('.photo-card').forEach(card=>{if(card.querySelector(`a[href="photo.html?id=${encodeURIComponent(id)}"]`)){const count=card.querySelector('.photo-card-likes');if(count)count.textContent=`${formatViews(data.likes)} likes`;}});};lb.onclick=()=>send('like');db.onclick=()=>send('dislike');}
+function setupPhotoShare(p){const b=document.getElementById('photoShareBtn');if(!b)return;b.onclick=async()=>{const url=location.href;if(navigator.share){try{await navigator.share({title:p.title||'Photo',url});return;}catch(e){}}try{await navigator.clipboard.writeText(url);alert('Link copied.');}catch(e){prompt('Copy this link:',url);}};}
+function setupPhotoSave(p){const b=document.getElementById('photoSaveBtn');if(!b)return;let saved=localStorage.getItem('vexa-saved-photo-'+p.id)==='1';b.classList.toggle('primary',saved);b.onclick=()=>{saved=!saved;localStorage.setItem('vexa-saved-photo-'+p.id,saved?'1':'0');b.classList.toggle('primary',saved);};}
 
 document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('photoPage'))renderPhotoPageDetail();});
